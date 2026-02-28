@@ -2,6 +2,9 @@ import { Redis } from '@upstash/redis';
 
 // Determine environment variables based on the platform
 const getEnv = (key: string) => {
+  if (typeof window !== 'undefined' && (window as any).ENV && (window as any).ENV[key]) {
+    return (window as any).ENV[key];
+  }
   if (typeof import.meta !== 'undefined' && (import.meta as any).env && (import.meta as any).env[key]) {
     return (import.meta as any).env[key];
   }
@@ -11,17 +14,14 @@ const getEnv = (key: string) => {
   return '';
 };
 
-const url = getEnv('UPSTASH_REDIS_REST_URL');
-const token = getEnv('UPSTASH_REDIS_REST_TOKEN');
+const url = getEnv('UPSTASH_REDIS_REST_URL') || 'https://placeholder-url.upstash.io';
+const token = getEnv('UPSTASH_REDIS_REST_TOKEN') || 'placeholder-token';
 
-if (!url || !token) {
-  console.warn("Redis credentials missing. Check .env");
+if (url === 'https://placeholder-url.upstash.io') {
+  console.warn("Redis credentials missing. Check .env or Cloudflare variables");
 }
 
-export const redis = new Redis({
-  url: url || 'https://placeholder-url.upstash.io',
-  token: token || 'placeholder-token',
-});
+export const redis = new Redis({ url, token });
 
 // Keys
 export const QUEUE_KEY = 'exam_submissions';

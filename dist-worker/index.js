@@ -777,31 +777,31 @@ const worker = {
     if (url.pathname.startsWith("/api/")) {
       try {
         if (url.pathname === "/api/check-result") {
-          const { default: handler } = await import("./assets/check-result-DwhQ24nY.js");
+          const { default: handler } = await import("./assets/check-result-Bme9f4jb.js");
           return await handler(request);
         }
         if (url.pathname === "/api/submit-exam") {
-          const { default: handler } = await import("./assets/submit-exam-BGuoaFFN.js");
+          const { default: handler } = await import("./assets/submit-exam-w_nlzIZc.js");
           return await handler(request);
         }
         if (url.pathname === "/api/get-exam-questions") {
-          const { default: handler } = await import("./assets/get-exam-questions-DzGYejAC.js");
+          const { default: handler } = await import("./assets/get-exam-questions-DT2Tz5iL.js");
           return await handler(request);
         }
         if (url.pathname === "/api/get-leaderboard") {
-          const { default: handler } = await import("./assets/get-leaderboard-DJi4n9ID.js");
+          const { default: handler } = await import("./assets/get-leaderboard-CJGszLWw.js");
           return await handler(request);
         }
         if (url.pathname === "/api/get-mistakes") {
-          const { default: handler } = await import("./assets/get-mistakes-CKa-8tX1.js");
+          const { default: handler } = await import("./assets/get-mistakes-CTyuwZHH.js");
           return await handler(request);
         }
         if (url.pathname === "/api/process-queue") {
-          const { default: handler } = await import("./assets/process-queue-BwO4D6kT.js");
+          const { default: handler } = await import("./assets/process-queue-DYi6zyvf.js");
           return await handler(request);
         }
         if (url.pathname === "/api/cron/process-queue") {
-          const { default: handler } = await import("./assets/process-queue-L99V5OPj.js");
+          const { default: handler } = await import("./assets/process-queue-C2gGwe93.js");
           return await handler(request);
         }
         return new Response("API Route Not Found", { status: 404 });
@@ -813,7 +813,25 @@ const worker = {
         });
       }
     }
-    return env2.ASSETS.fetch(request);
+    const response = await env2.ASSETS.fetch(request);
+    if (response.headers.get("content-type")?.includes("text/html")) {
+      let html = await response.text();
+      const envScript = `<script>window.ENV = { 
+        VITE_SUPABASE_URL: "${env2.VITE_SUPABASE_URL || ""}", 
+        VITE_SUPABASE_ANON_KEY: "${env2.VITE_SUPABASE_ANON_KEY || ""}",
+        UPSTASH_REDIS_REST_URL: "${env2.UPSTASH_REDIS_REST_URL || ""}",
+        UPSTASH_REDIS_REST_TOKEN: "${env2.UPSTASH_REDIS_REST_TOKEN || ""}"
+      };<\/script></head>`;
+      html = html.replace("</head>", envScript);
+      const newHeaders = new Headers(response.headers);
+      newHeaders.delete("content-length");
+      return new Response(html, {
+        status: response.status,
+        statusText: response.statusText,
+        headers: newHeaders
+      });
+    }
+    return response;
   }
 };
 const workerEntry = worker ?? {};

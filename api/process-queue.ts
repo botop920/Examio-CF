@@ -5,19 +5,23 @@ export const config = {
   runtime: 'edge',
 };
 
-// Initialize Supabase
-// Uses Service Role Key if available for backend processing (bypasses RLS), otherwise falls back to Anon key
-const supabaseUrl = process.env.VITE_SUPABASE_URL!;
-const supabaseKey = process.env.SUPABASE_SERVICE_ROLE_KEY || process.env.VITE_SUPABASE_ANON_KEY!;
-
-const supabase = createClient(supabaseUrl, supabaseKey, {
-  auth: {
-    persistSession: false,
-    autoRefreshToken: false,
-  },
-});
-
 export default async function handler(req: Request) {
+  // Initialize Supabase
+  // Uses Service Role Key if available for backend processing (bypasses RLS), otherwise falls back to Anon key
+  const supabaseUrl = process.env.VITE_SUPABASE_URL;
+  const supabaseKey = process.env.SUPABASE_SERVICE_ROLE_KEY || process.env.VITE_SUPABASE_ANON_KEY;
+
+  if (!supabaseUrl || !supabaseKey) {
+    return new Response(JSON.stringify({ error: 'Supabase credentials missing' }), { status: 500 });
+  }
+
+  const supabase = createClient(supabaseUrl, supabaseKey, {
+    auth: {
+      persistSession: false,
+      autoRefreshToken: false,
+    },
+  });
+
   try {
     // 1. Security Check
     const { searchParams } = new URL(req.url);

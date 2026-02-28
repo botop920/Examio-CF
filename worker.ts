@@ -51,6 +51,29 @@ export default {
     }
 
     // Serve static assets for all other requests
-    return env.ASSETS.fetch(request);
+    const response = await env.ASSETS.fetch(request);
+
+    // Inject ENV variables into HTML so frontend can use them without rebuild
+    if (response.headers.get('content-type')?.includes('text/html')) {
+      let html = await response.text();
+      const envScript = `<script>window.ENV = { 
+        VITE_SUPABASE_URL: "${env.VITE_SUPABASE_URL || ''}", 
+        VITE_SUPABASE_ANON_KEY: "${env.VITE_SUPABASE_ANON_KEY || ''}",
+        UPSTASH_REDIS_REST_URL: "${env.UPSTASH_REDIS_REST_URL || ''}",
+        UPSTASH_REDIS_REST_TOKEN: "${env.UPSTASH_REDIS_REST_TOKEN || ''}"
+      };</script></head>`;
+      html = html.replace('</head>', envScript);
+      
+      const newHeaders = new Headers(response.headers);
+      newHeaders.delete('content-length');
+      
+      return new Response(html, {
+        status: response.status,
+        statusText: response.statusText,
+        headers: newHeaders
+      });
+    }
+
+    return response;
   },
 };
