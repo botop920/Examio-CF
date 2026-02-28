@@ -1,0 +1,109 @@
+
+// --- 1. URL Obfuscation (Prevents ID scraping) ---
+export const encodeId = (id: string): string => {
+  if (!id) return '';
+  try {
+    // Simple obfuscation + salt (Prevents casual eye-balling)
+    return btoa(`EXAMIO_${id}_SECURE`).replace(/=/g, '');
+  } catch (e) {
+    return id;
+  }
+};
+
+export const decodeId = (token: string): string => {
+  if (!token) return '';
+  try {
+    const decoded = atob(token);
+    if (decoded.startsWith('EXAMIO_') && decoded.endsWith('_SECURE')) {
+      return decoded.replace('EXAMIO_', '').replace('_SECURE', '');
+    }
+    return token; // Fallback for legacy IDs
+  } catch (e) {
+    return token;
+  }
+};
+
+// --- 2. Secure LocalStorage (Tamper Protection) ---
+const STORAGE_PREFIX = 'EXAMIO_SECure_';
+const HMAC_KEY = 'examio-integrity-key'; // In prod, use env var
+
+const generateSignature = (data: string): string => {
+  // Simple hash for client-side integrity (Prevent DevTools tampering)
+  let hash = 0;
+  const str = data + HMAC_KEY;
+  for (let i = 0; i < str.length; i++) {
+    const char = str.charCodeAt(i);
+    hash = ((hash << 5) - hash) + char;
+    hash = hash & hash;
+  }
+  return hash.toString(16);
+};
+
+export const SecureStorage = {
+  setItem: (key: string, value: any) => {
+    try {
+      const stringValue = JSON.stringify(value);
+      const signature = generateSignature(stringValue);
+      const payload = JSON.stringify({ d: stringValue, s: signature });
+      localStorage.setItem(`${STORAGE_PREFIX}${key}`, payload);
+    } catch (e) {
+      console.error("Storage Error", e);
+    }
+  },
+
+  getItem: (key: string) => {
+    try {
+      const raw = localStorage.getItem(`${STORAGE_PREFIX}${key}`);
+      if (!raw) return null;
+
+      const parsed = JSON.parse(raw);
+      const calculatedSig = generateSignature(parsed.d);
+
+      if (calculatedSig !== parsed.s) {
+        console.warn("Security Alert: LocalStorage tampering detected. Clearing data.");
+        localStorage.removeItem(`${STORAGE_PREFIX}${key}`);
+        return null;
+      }
+
+      return JSON.parse(parsed.d);
+    } catch (e) {
+      return null;
+    }
+  },
+
+  removeItem: (key: string) => {
+    localStorage.removeItem(`${STORAGE_PREFIX}${key}`);
+  }
+};
+
+// --- 3. Obfuscated Cache (For Questions) ---
+// This makes the JSON unreadable in DevTools (XOR Cipher + Base64)
+const CACHE_SALT = "EXAMiO_Smart_Cache_v1";
+
+export const obfuscateData = (data: any): string => {
+    try {
+        const json = JSON.stringify(data);
+        let result = '';
+        for (let i = 0; i < json.length; i++) {
+            result += String.fromCharCode(json.charCodeAt(i) ^ CACHE_SALT.charCodeAt(i % CACHE_SALT.length));
+        }
+        return btoa(result);
+    } catch (e) {
+        console.error("Obfuscation Failed", e);
+        return "";
+    }
+};
+
+export const deobfuscateData = (cipher: string): any => {
+    try {
+        const str = atob(cipher);
+        let result = '';
+        for (let i = 0; i < str.length; i++) {
+            result += String.fromCharCode(str.charCodeAt(i) ^ CACHE_SALT.charCodeAt(i % CACHE_SALT.length));
+        }
+        return JSON.parse(result);
+    } catch (e) {
+        console.error("Deobfuscation Failed", e);
+        return null;
+    }
+};

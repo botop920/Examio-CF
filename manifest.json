@@ -1,0 +1,22 @@
+{
+  "name": "EXAMiO",
+  "short_name": "EXAMiO",
+  "description": "A comprehensive digital exam management platform.",
+  "start_url": ".",
+  "display": "standalone",
+  "background_color": "#FFFFFF",
+  "theme_color": "#0071E3",
+  "orientation": "portrait",
+  "icons": [
+    {
+      "src": "https://res.cloudinary.com/dejm7pz1d/image/upload/v1770135336/IMG_2585_tiorhy.png",
+      "sizes": "192x192",
+      "type": "image/png"
+    },
+    {
+      "src": "https://res.cloudinary.com/dejm7pz1d/image/upload/v1770135336/IMG_2585_tiorhy.png",
+      "sizes": "512x512",
+      "type": "image/png"
+    }
+  ]
+}

@@ -1,0 +1,182 @@
+
+<!DOCTYPE html>
+<html lang="bn" class="scroll-smooth">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no" />
+    
+    <!-- PWA Configuration -->
+    <title>EXAMiO | ডিজিটাল পরীক্ষার পূর্ণাঙ্গ সমাধান</title>
+    <meta name="description" content="A comprehensive digital exam management platform for educational institutions.">
+    <meta name="theme-color" content="#0071E3">
+    
+    <!-- iOS Specific PWA Settings -->
+    <meta name="apple-mobile-web-app-capable" content="yes">
+    <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+    <meta name="apple-mobile-web-app-title" content="EXAMiO">
+    <link rel="apple-touch-icon" href="https://res.cloudinary.com/dejm7pz1d/image/upload/v1770135336/IMG_2585_tiorhy.png">
+    
+    <!-- Manifest Link -->
+    <link rel="manifest" href="/manifest.json">
+
+    <!-- OpenCV for OMR -->
+    <script async src="https://docs.opencv.org/4.8.0/opencv.js" type="text/javascript"></script>
+
+    <!-- CRITICAL: Theme Check Script (Prevents White Flash) -->
+    <script>
+      (function() {
+        try {
+          const localTheme = localStorage.getItem('theme');
+          const systemDark = window.matchMedia('(prefers-color-scheme: dark)').matches;
+          
+          if (localTheme === 'dark' || (!localTheme && systemDark)) {
+            document.documentElement.classList.add('dark');
+          } else {
+            document.documentElement.classList.remove('dark');
+          }
+        } catch (e) {}
+      })();
+    </script>
+
+    <!-- CRITICAL CSS: Applied immediately before Tailwind loads -->
+    <style>
+      html.dark body {
+        background-color: #000000 !important;
+        color: #F5F5F7;
+      }
+      /* Prevent text selection to feel more like an app */
+      .app-like {
+        user-select: none;
+        -webkit-user-select: none;
+        -webkit-touch-callout: none;
+      }
+    </style>
+
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Noto+Sans+Bengali:wght@300;400;500;600;700&family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+    <!-- KaTeX CSS for Math Rendering -->
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/katex@0.16.9/dist/katex.min.css" integrity="sha384-n8MVd4RsNIU0tAv4ct0nTaAbDJwPJzDEaqSD1odI+WdtXRGWt2kTvGFasHpSy3SV" crossorigin="anonymous">
+
+    <script>
+      tailwind.config = {
+        darkMode: "class",
+        theme: {
+          extend: {
+            colors: {
+              "primary": "#0071E3", /* Apple's Royal Blue */
+              "primary-dark": "#005bb5",
+              "background-light": "#FFFCF5", /* Warm Ivory */
+              "background-dark": "#000000", /* Deep Black */
+              "surface-light": "#FFFFFF",
+              "surface-dark": "#1C1C1E", /* Card Dark */
+              "text-main": "#1D1D1F",
+              "text-muted": "#86868B",
+            },
+            fontFamily: {
+              "sans": ["Inter", "Noto Sans Bengali", "sans-serif"],
+              "display": ["Inter", "Noto Sans Bengali", "sans-serif"]
+            },
+            boxShadow: {
+              'premium': '0 4px 24px rgba(0, 0, 0, 0.04)',
+              'premium-hover': '0 8px 32px rgba(0, 0, 0, 0.08)',
+              'card': '0 2px 8px rgba(0, 0, 0, 0.02)',
+            },
+            backgroundImage: {
+              'gradient-mesh': 'radial-gradient(at 0% 0%, hsla(210,100%,56%,0.1) 0px, transparent 50%), radial-gradient(at 100% 0%, hsla(280,100%,60%,0.05) 0px, transparent 50%)',
+            }
+          },
+        },
+      }
+    </script>
+    <style>
+      body {
+        font-family: 'Inter', 'Noto Sans Bengali', sans-serif;
+        -webkit-font-smoothing: antialiased;
+        -moz-osx-font-smoothing: grayscale;
+        background-color: var(--tw-colors-background-light);
+        text-rendering: auto; /* Reverted to auto for performance */
+      }
+      
+      /* Extremely Optimized Scrollbar */
+      ::-webkit-scrollbar {
+        width: 10px;
+      }
+      ::-webkit-scrollbar-track {
+        background: transparent;
+      }
+      ::-webkit-scrollbar-thumb {
+        background-color: rgba(0, 0, 0, 0.1);
+        border-radius: 20px;
+        border: 2px solid transparent;
+        background-clip: content-box;
+      }
+      .dark ::-webkit-scrollbar-thumb {
+        background-color: rgba(255, 255, 255, 0.1);
+      }
+
+      /* Custom Animation for Extracted Questions */
+      @keyframes fadeInSlideUp {
+        0% {
+          opacity: 0;
+          transform: translateY(20px);
+        }
+        100% {
+          opacity: 1;
+          transform: translateY(0);
+        }
+      }
+      
+      .animate-fade-in-up {
+        animation: fadeInSlideUp 0.4s cubic-bezier(0.16, 1, 0.3, 1) forwards;
+      }
+    </style>
+  <script type="importmap">
+{
+  "imports": {
+    "react": "https://esm.sh/react@^19.2.4",
+    "react-dom/": "https://esm.sh/react-dom@^19.2.4/",
+    "react/": "https://esm.sh/react@^19.2.4/",
+    "lucide-react": "https://esm.sh/lucide-react@^0.563.0",
+    "react-hot-toast": "https://esm.sh/react-hot-toast@^2.6.0",
+    "@google/genai": "https://esm.sh/@google/genai@^1.38.0",
+    "katex": "https://esm.sh/katex@^0.16.28",
+    "gsap": "https://esm.sh/gsap@^3.14.2",
+    "@supabase/supabase-js": "https://esm.sh/@supabase/supabase-js@^2.93.3",
+    "qrcode.react": "https://esm.sh/qrcode.react@^4.2.0",
+    "vite": "https://esm.sh/vite@^7.3.1",
+    "@vitejs/plugin-react": "https://esm.sh/@vitejs/plugin-react@^5.1.2",
+    "gsap/": "https://esm.sh/gsap@^3.14.2/",
+    "pdfjs-dist": "https://esm.sh/pdfjs-dist@3.11.174",
+    "jspdf": "https://esm.sh/jspdf@2.5.1",
+    "jspdf-autotable": "https://esm.sh/jspdf-autotable@3.8.2",
+    "tailwind-merge": "https://esm.sh/tailwind-merge@^3.4.0",
+    "clsx": "https://esm.sh/clsx@^2.1.1",
+    "browser-image-compression": "https://esm.sh/browser-image-compression@2.0.2",
+    "@upstash/redis": "https://esm.sh/@upstash/redis@^1.36.2",
+    "html2canvas": "https://esm.sh/html2canvas@1.4.1"
+  }
+}
+</script>
+</head>
+  <body class="bg-background-light dark:bg-background-dark text-text-main dark:text-[#F5F5F7] antialiased transition-colors duration-200">
+    <div id="root"></div>
+    <script type="module" src="/index.tsx"></script>
+    
+    <!-- Service Worker Registration -->
+    <script>
+      if ('serviceWorker' in navigator) {
+        window.addEventListener('load', () => {
+          navigator.serviceWorker.register('/sw.js')
+            .then(registration => {
+              console.log('SW registered: ', registration);
+            })
+            .catch(registrationError => {
+              console.log('SW registration failed: ', registrationError);
+            });
+        });
+      }
+    </script>
+  </body>
+</html>
