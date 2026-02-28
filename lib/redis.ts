@@ -14,14 +14,27 @@ const getEnv = (key: string) => {
   return '';
 };
 
-const url = getEnv('UPSTASH_REDIS_REST_URL') || 'https://placeholder-url.upstash.io';
-const token = getEnv('UPSTASH_REDIS_REST_TOKEN') || 'placeholder-token';
+let redisInstance: Redis | null = null;
 
-if (url === 'https://placeholder-url.upstash.io') {
-  console.warn("Redis credentials missing. Check .env or Cloudflare variables");
-}
+export const getRedis = (env?: any) => {
+  if (!redisInstance) {
+    const url = env?.UPSTASH_REDIS_REST_URL || getEnv('UPSTASH_REDIS_REST_URL') || 'https://placeholder-url.upstash.io';
+    const token = env?.UPSTASH_REDIS_REST_TOKEN || getEnv('UPSTASH_REDIS_REST_TOKEN') || 'placeholder-token';
 
-export const redis = new Redis({ url, token });
+    if (url === 'https://placeholder-url.upstash.io') {
+      console.warn("Redis credentials missing. Check .env or Cloudflare variables");
+    }
+
+    redisInstance = new Redis({ url, token });
+  }
+  return redisInstance;
+};
+
+export const redis = new Proxy({} as Redis, {
+  get: (target, prop) => {
+    return (getRedis() as any)[prop];
+  }
+});
 
 // Keys
 export const QUEUE_KEY = 'exam_submissions';

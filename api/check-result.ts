@@ -1,14 +1,16 @@
 
-import { redis } from '../lib/redis';
+import { getRedis } from '../lib/redis';
 
 export const config = {
   runtime: 'edge',
 };
 
-export default async function handler(req: Request) {
+export default async function handler(req: Request, env: any) {
   if (req.method !== 'GET') {
     return new Response(JSON.stringify({ error: 'Method not allowed' }), { status: 405 });
   }
+
+  const redis = getRedis(env);
 
   try {
     const { searchParams } = new URL(req.url);

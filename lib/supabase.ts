@@ -16,11 +16,24 @@ const getEnv = (key: string) => {
   return '';
 };
 
-const supabaseUrl = getEnv('VITE_SUPABASE_URL') || 'https://placeholder.supabase.co';
-const supabaseAnonKey = getEnv('VITE_SUPABASE_ANON_KEY') || 'placeholder';
+let supabaseInstance: any = null;
 
-if (supabaseUrl === 'https://placeholder.supabase.co') {
-  console.warn("Supabase credentials missing. Please check your .env file or Cloudflare variables.");
-}
+export const getSupabase = (env?: any) => {
+  if (!supabaseInstance) {
+    const supabaseUrl = env?.VITE_SUPABASE_URL || getEnv('VITE_SUPABASE_URL') || 'https://placeholder.supabase.co';
+    const supabaseAnonKey = env?.VITE_SUPABASE_ANON_KEY || getEnv('VITE_SUPABASE_ANON_KEY') || 'placeholder';
 
-export const supabase = createClient(supabaseUrl, supabaseAnonKey);
+    if (supabaseUrl === 'https://placeholder.supabase.co') {
+      console.warn("Supabase credentials missing. Please check your .env file or Cloudflare variables.");
+    }
+
+    supabaseInstance = createClient(supabaseUrl, supabaseAnonKey);
+  }
+  return supabaseInstance;
+};
+
+export const supabase = new Proxy({} as any, {
+  get: (target, prop) => {
+    return (getSupabase() as any)[prop];
+  }
+});

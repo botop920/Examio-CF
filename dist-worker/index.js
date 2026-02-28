@@ -777,32 +777,32 @@ const worker = {
     if (url.pathname.startsWith("/api/")) {
       try {
         if (url.pathname === "/api/check-result") {
-          const { default: handler } = await import("./assets/check-result-Bme9f4jb.js");
-          return await handler(request);
+          const { default: handler } = await import("./assets/check-result-CCq5_Q-A.js");
+          return await handler(request, env2, ctx);
         }
         if (url.pathname === "/api/submit-exam") {
-          const { default: handler } = await import("./assets/submit-exam-w_nlzIZc.js");
-          return await handler(request);
+          const { default: handler } = await import("./assets/submit-exam-GEjioRpb.js");
+          return await handler(request, env2, ctx);
         }
         if (url.pathname === "/api/get-exam-questions") {
-          const { default: handler } = await import("./assets/get-exam-questions-DT2Tz5iL.js");
-          return await handler(request);
+          const { default: handler } = await import("./assets/get-exam-questions-BM-VcfUI.js");
+          return await handler(request, env2, ctx);
         }
         if (url.pathname === "/api/get-leaderboard") {
-          const { default: handler } = await import("./assets/get-leaderboard-CJGszLWw.js");
-          return await handler(request);
+          const { default: handler } = await import("./assets/get-leaderboard-BZz4VjaQ.js");
+          return await handler(request, env2, ctx);
         }
         if (url.pathname === "/api/get-mistakes") {
-          const { default: handler } = await import("./assets/get-mistakes-CTyuwZHH.js");
-          return await handler(request);
+          const { default: handler } = await import("./assets/get-mistakes-CLLk7WaM.js");
+          return await handler(request, env2, ctx);
         }
         if (url.pathname === "/api/process-queue") {
-          const { default: handler } = await import("./assets/process-queue-DYi6zyvf.js");
-          return await handler(request);
+          const { default: handler } = await import("./assets/process-queue-Ou8RL6R4.js");
+          return await handler(request, env2, ctx);
         }
         if (url.pathname === "/api/cron/process-queue") {
-          const { default: handler } = await import("./assets/process-queue-C2gGwe93.js");
-          return await handler(request);
+          const { default: handler } = await import("./assets/process-queue-BRWuqcDL.js");
+          return await handler(request, env2, ctx);
         }
         return new Response("API Route Not Found", { status: 404 });
       } catch (e) {

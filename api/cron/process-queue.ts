@@ -1,14 +1,14 @@
 import { createClient } from '@supabase/supabase-js';
-import { redis, QUEUE_KEY, FAILED_QUEUE_KEY, CONFIG_BATCH_SIZE } from '../../lib/redis';
+import { getRedis, QUEUE_KEY, FAILED_QUEUE_KEY, CONFIG_BATCH_SIZE } from '../../lib/redis';
 
 export const config = {
   runtime: 'edge', 
 };
 
-export default async function handler(req: Request) {
-  const supabaseUrl = process.env.VITE_SUPABASE_URL;
+export default async function handler(req: Request, env: any) {
+  const supabaseUrl = env?.VITE_SUPABASE_URL || process.env.VITE_SUPABASE_URL;
   // CRITICAL FIX: Use Service Role Key for background jobs to bypass RLS
-  const supabaseKey = process.env.SUPABASE_SERVICE_ROLE_KEY || process.env.VITE_SUPABASE_ANON_KEY; 
+  const supabaseKey = env?.SUPABASE_SERVICE_ROLE_KEY || process.env.SUPABASE_SERVICE_ROLE_KEY || env?.VITE_SUPABASE_ANON_KEY || process.env.VITE_SUPABASE_ANON_KEY; 
 
   if (!supabaseUrl || !supabaseKey) {
     return new Response(JSON.stringify({ error: 'Supabase credentials missing' }), { status: 500 });
@@ -20,6 +20,7 @@ export default async function handler(req: Request) {
       autoRefreshToken: false,
     }
   });
+  const redis = getRedis(env);
 
   // Security check: Verify Vercel Cron or specific secret
   const authHeader = req.headers.get('authorization');

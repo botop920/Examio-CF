@@ -1,25 +1,26 @@
 
 import { createClient } from '@supabase/supabase-js';
-import { redis } from '../lib/redis';
+import { getRedis } from '../lib/redis';
 
 export const config = {
   runtime: 'edge',
 };
 
-export default async function handler(req: Request) {
+export default async function handler(req: Request, env: any) {
   if (req.method !== 'GET') {
     return new Response(JSON.stringify({ error: 'Method not allowed' }), { status: 405 });
   }
 
   // Use Service Role Key for robust backend access (bypasses RLS)
-  const supabaseUrl = process.env.VITE_SUPABASE_URL;
-  const supabaseKey = process.env.SUPABASE_SERVICE_ROLE_KEY || process.env.VITE_SUPABASE_ANON_KEY;
+  const supabaseUrl = env?.VITE_SUPABASE_URL || process.env.VITE_SUPABASE_URL;
+  const supabaseKey = env?.SUPABASE_SERVICE_ROLE_KEY || process.env.SUPABASE_SERVICE_ROLE_KEY || env?.VITE_SUPABASE_ANON_KEY || process.env.VITE_SUPABASE_ANON_KEY;
 
   if (!supabaseUrl || !supabaseKey) {
     return new Response(JSON.stringify({ error: 'Supabase credentials missing' }), { status: 500 });
   }
 
   const supabase = createClient(supabaseUrl, supabaseKey);
+  const redis = getRedis(env);
 
   try {
     const { searchParams } = new URL(req.url);
