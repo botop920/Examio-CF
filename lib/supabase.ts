@@ -20,8 +20,8 @@ let supabaseInstance: any = null;
 
 export const getSupabase = (env?: any) => {
   if (!supabaseInstance) {
-    const supabaseUrl = env?.VITE_SUPABASE_URL || getEnv('VITE_SUPABASE_URL') || 'https://placeholder.supabase.co';
-    const supabaseAnonKey = env?.VITE_SUPABASE_ANON_KEY || getEnv('VITE_SUPABASE_ANON_KEY') || 'placeholder';
+    const supabaseUrl = env?.VITE_SUPABASE_URL || process.env.VITE_SUPABASE_URL || getEnv('VITE_SUPABASE_URL') || 'https://placeholder.supabase.co';
+    const supabaseAnonKey = env?.VITE_SUPABASE_ANON_KEY || process.env.VITE_SUPABASE_ANON_KEY || getEnv('VITE_SUPABASE_ANON_KEY') || 'placeholder';
 
     if (supabaseUrl === 'https://placeholder.supabase.co') {
       console.warn("Supabase credentials missing. Please check your .env file or Cloudflare variables.");

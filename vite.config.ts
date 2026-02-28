@@ -23,7 +23,12 @@ export default defineConfig(({ mode }) => {
     plugins: [react(), cloudflare()],
     define: {
       // Map system env vars to process.env for the Google GenAI SDK
-      'process.env.API_KEY': JSON.stringify(env.VITE_API_KEY || env.API_KEY),
+      'process.env.API_KEY': JSON.stringify(env.VITE_API_KEY || env.API_KEY || ''),
+      'process.env.VITE_SUPABASE_URL': JSON.stringify(env.VITE_SUPABASE_URL || ''),
+      'process.env.VITE_SUPABASE_ANON_KEY': JSON.stringify(env.VITE_SUPABASE_ANON_KEY || ''),
+      'process.env.UPSTASH_REDIS_REST_URL': JSON.stringify(env.UPSTASH_REDIS_REST_URL || ''),
+      'process.env.UPSTASH_REDIS_REST_TOKEN': JSON.stringify(env.UPSTASH_REDIS_REST_TOKEN || ''),
+      'process.env.SUPABASE_SERVICE_ROLE_KEY': JSON.stringify(env.SUPABASE_SERVICE_ROLE_KEY || ''),
     },
   };
 });

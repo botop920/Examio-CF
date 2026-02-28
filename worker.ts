@@ -7,11 +7,24 @@ export default {
       Object.assign(globalThis.process.env, env);
     }
 
+    console.log("WORKER ENV KEYS:", Object.keys(env));
+    console.log("WORKER HAS SUPABASE URL:", !!env.VITE_SUPABASE_URL);
+    console.log("PROCESS ENV HAS SUPABASE URL:", !!process.env.VITE_SUPABASE_URL);
+
     const url = new URL(request.url);
 
     // Route API requests
     if (url.pathname.startsWith("/api/")) {
       try {
+        if (url.pathname === "/api/debug-env") {
+          return new Response(JSON.stringify({
+            env_keys: Object.keys(env),
+            has_supabase_url: !!env.VITE_SUPABASE_URL,
+            process_env_keys: Object.keys(process.env),
+            has_process_supabase: !!process.env.VITE_SUPABASE_URL,
+            static_supabase: process.env.VITE_SUPABASE_URL ? "yes" : "no",
+          }), { status: 200, headers: { "Content-Type": "application/json" } });
+        }
         if (url.pathname === "/api/check-result") {
           const { default: handler } = await import("./api/check-result");
           return await handler(request, env, ctx);
