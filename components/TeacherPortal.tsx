@@ -340,7 +340,7 @@ export const TeacherPortal: React.FC<TeacherPortalProps> = ({
 
   // Mobile App Navigation State
   const [activeView, setActiveView] = useState<
-    "home" | "analytics" | "mistakes" | "profile"
+    "home" | "analytics" | "mistakes" | "profile" | "leaderboard" | "upcoming" | "past"
   >("home");
   const [now, setNow] = useState(new Date());
 
@@ -699,20 +699,41 @@ export const TeacherPortal: React.FC<TeacherPortalProps> = ({
     toast.success("Logged out successfully");
   };
 
-  const { live, upcoming } = useMemo(() => {
+  const { live, upcoming, past } = useMemo(() => {
     const liveExams: any[] = [];
     const upcomingExams: any[] = [];
+    const pastExams: any[] = [];
     exams.forEach((exam) => {
       const start = exam.start_time ? new Date(exam.start_time) : null;
       if (start && start > now) {
         upcomingExams.push(exam);
         return;
       }
-      if (exam.status === "draft" || exam.status === "completed") return;
-      if (exam.end_time && new Date(exam.end_time) < now) return;
+      if (exam.status === "draft") return;
+
+      const end = exam.end_time ? new Date(exam.end_time) : null;
+
+      // 1. If time is over, it's past
+      if (end && end < now) {
+          pastExams.push(exam);
+          return;
+      }
+
+      // 2. If time is in future, it's live (overrides completed status)
+      if (end && end > now) {
+          liveExams.push(exam);
+          return;
+      }
+
+      // 3. If no time limit, check status
+      if (exam.status === "completed") {
+          pastExams.push(exam);
+          return;
+      }
+
       liveExams.push(exam);
     });
-    return { live: liveExams, upcoming: upcomingExams };
+    return { live: liveExams, upcoming: upcomingExams, past: pastExams };
   }, [exams, now]);
 
   const handleExamClick = (examId: string, asLeaderboard = false) => {
@@ -785,16 +806,10 @@ export const TeacherPortal: React.FC<TeacherPortalProps> = ({
           {activeView === "analytics" && (
             <div className="absolute -top-2 left-1/2 -translate-x-1/2 w-1 h-1 bg-gray-900 dark:bg-white rounded-full"></div>
           )}
-          <Search className="w-6 h-6 text-gray-900 dark:text-white" />
+          <BarChart2 className="w-6 h-6 text-gray-900 dark:text-white" />
         </div>
         <span className="text-[10px] font-bold text-gray-900 dark:text-white">
-          সার্চ
-        </span>
-      </div>
-      <div className="flex flex-col items-center gap-1 cursor-pointer opacity-40 hover:opacity-100 transition-opacity">
-        <MessageCircle className="w-6 h-6 text-gray-900 dark:text-white" />
-        <span className="text-[10px] font-bold text-gray-900 dark:text-white">
-          চ্যাট
+          অ্যানালিটিক্স
         </span>
       </div>
       <div
@@ -839,6 +854,12 @@ export const TeacherPortal: React.FC<TeacherPortalProps> = ({
           </div>
         </div>
         <div className="flex items-center gap-3">
+          <button
+            onClick={() => setActiveView('analytics')}
+            className="p-2 bg-gray-100 dark:bg-white/10 rounded-full text-gray-600 dark:text-gray-300"
+          >
+            <Search size={18} />
+          </button>
           <div className="flex items-center gap-1 bg-orange-50 dark:bg-orange-900/20 px-2 py-1 rounded-full">
             <Flame className="w-4 h-4 text-orange-500 fill-orange-500" />
             <span className="text-sm font-bold text-orange-600 dark:text-orange-400">
@@ -905,7 +926,7 @@ export const TeacherPortal: React.FC<TeacherPortalProps> = ({
                   লাইভ এক্সাম
                 </span>
               </div>
-              <div className="flex flex-col items-center gap-2 cursor-pointer group">
+              <div onClick={() => setActiveView('upcoming')} className="flex flex-col items-center gap-2 cursor-pointer group">
                 <div className="w-14 h-14 rounded-2xl bg-[#3B82F6] text-white flex items-center justify-center shadow-md shadow-blue-200 dark:shadow-none group-active:scale-95 transition-transform">
                   <Calendar className="w-6 h-6" />
                 </div>
@@ -913,15 +934,15 @@ export const TeacherPortal: React.FC<TeacherPortalProps> = ({
                   রুটিন
                 </span>
               </div>
-              <div className="flex flex-col items-center gap-2 cursor-pointer group">
+              <div onClick={() => setActiveView('past')} className="flex flex-col items-center gap-2 cursor-pointer group">
                 <div className="w-14 h-14 rounded-2xl bg-[#F97316] text-white flex items-center justify-center shadow-md shadow-orange-200 dark:shadow-none group-active:scale-95 transition-transform">
-                  <HelpCircle className="w-6 h-6" />
+                  <Clock className="w-6 h-6" />
                 </div>
                 <span className="text-[11px] font-semibold text-gray-700 dark:text-gray-300 text-center">
-                  ডাউট সলভ
+                  অতীত এক্সাম
                 </span>
               </div>
-              <div className="flex flex-col items-center gap-2 cursor-pointer group">
+              <div onClick={() => setActiveView('leaderboard')} className="flex flex-col items-center gap-2 cursor-pointer group">
                 <div className="w-14 h-14 rounded-2xl bg-[#14B8A6] text-white flex items-center justify-center shadow-md shadow-teal-200 dark:shadow-none group-active:scale-95 transition-transform">
                   <Trophy className="w-6 h-6" />
                 </div>
@@ -935,7 +956,7 @@ export const TeacherPortal: React.FC<TeacherPortalProps> = ({
             <div className="mt-8">
               <div className="flex items-center justify-between mb-4">
                 <h3 className="text-lg font-bold text-gray-900 dark:text-white">
-                  করণীয় টাস্কসমূহ
+                  চলমান পরীক্ষাসমূহ
                 </h3>
                 <button className="text-sm font-semibold text-gray-500 flex items-center hover:text-gray-800 dark:hover:text-gray-300 transition-colors">
                   সব দেখুন <ChevronRight className="w-4 h-4 ml-0.5" />
@@ -985,14 +1006,30 @@ export const TeacherPortal: React.FC<TeacherPortalProps> = ({
                   const colorTheme = colors[idx % colors.length];
 
                   const start = new Date(exam.start_time);
-                  let timeLabel = "";
-                  if (start.toDateString() === new Date().toDateString()) {
-                    timeLabel = `আজ, ${start.toLocaleTimeString("bn-BD", { hour: "numeric", minute: "2-digit" })}`;
+                  const end = exam.end_time ? new Date(exam.end_time) : null;
+                  let timeLabel: React.ReactNode = "";
+
+                  if (end && now >= start && now < end) {
+                      const diff = end.getTime() - now.getTime();
+                      const hours = Math.floor(diff / (1000 * 60 * 60));
+                      const minutes = Math.floor((diff % (1000 * 60 * 60)) / (1000 * 60));
+                      const seconds = Math.floor((diff % (1000 * 60)) / 1000);
+                      timeLabel = (
+                          <span className="text-orange-500 font-bold animate-pulse">
+                              শেষ হবে: {hours}h {minutes}m {seconds}s
+                          </span>
+                      );
+                  } else if (start && !isNaN(start.getTime()) && start.getFullYear() > 1970) {
+                      if (start.toDateString() === new Date().toDateString()) {
+                        timeLabel = `আজ, ${start.toLocaleTimeString("bn-BD", { hour: "numeric", minute: "2-digit" })}`;
+                      } else {
+                        timeLabel = start.toLocaleDateString("bn-BD", {
+                          day: "numeric",
+                          month: "long",
+                        });
+                      }
                   } else {
-                    timeLabel = start.toLocaleDateString("bn-BD", {
-                      day: "numeric",
-                      month: "long",
-                    });
+                      timeLabel = "";
                   }
 
                   return (
@@ -1028,7 +1065,7 @@ export const TeacherPortal: React.FC<TeacherPortalProps> = ({
                             </div>
                             <div className="flex items-center gap-1">
                               <FileText className="w-3.5 h-3.5" />
-                              <span>{exam.total_marks} প্রশ্ন</span>
+                              <span>{exam.questions?.length || exam.total_marks || 0} প্রশ্ন</span>
                             </div>
                           </div>
                         </div>
@@ -1046,6 +1083,211 @@ export const TeacherPortal: React.FC<TeacherPortalProps> = ({
                 })}
               </div>
             </div>
+          </div>
+        )}
+
+        {/* --- PAST EXAMS VIEW --- */}
+        {activeView === "past" && (
+          <div className="space-y-6 animate-in fade-in slide-in-from-bottom-2">
+            <div className="flex items-center gap-2 mb-4">
+              <button onClick={() => setActiveView('home')} className="p-2 hover:bg-gray-100 dark:hover:bg-white/10 rounded-full">
+                <ChevronRight className="rotate-180" size={20} />
+              </button>
+              <h2 className="text-xl font-bold dark:text-white">Past Exams</h2>
+            </div>
+            {past.length === 0 ? (
+                <div className="text-center py-20 opacity-50">
+                    <Clock className="mx-auto mb-2 text-gray-300" size={32} />
+                    <p className="text-xs">No past exams found</p>
+                </div>
+            ) : (
+                <div className="space-y-3">
+                    {past.map((exam, idx) => {
+                        // Check if student has taken this exam
+                        const submission = mySubmissions.find(s => s.exam_id === exam.id);
+                        
+                        // Use same color logic as tasks section
+                        const colors = [
+                            {
+                              bg: "bg-blue-50 dark:bg-blue-900/20",
+                              text: "text-blue-500",
+                              icon: <Atom className="w-5 h-5" />,
+                              hover: "hover:border-blue-200",
+                            },
+                            {
+                              bg: "bg-green-50 dark:bg-green-900/20",
+                              text: "text-green-500",
+                              icon: <FlaskConical className="w-5 h-5" />,
+                              hover: "hover:border-green-200",
+                            },
+                            {
+                              bg: "bg-gray-50 dark:bg-gray-800",
+                              text: "text-gray-500",
+                              icon: <Grid3X3 className="w-5 h-5" />,
+                              hover: "hover:border-gray-300",
+                            },
+                            {
+                              bg: "bg-orange-50 dark:bg-orange-900/20",
+                              text: "text-orange-500",
+                              icon: <FileText className="w-5 h-5" />,
+                              hover: "hover:border-orange-200",
+                            },
+                        ];
+                        const colorTheme = colors[idx % colors.length];
+
+                        const start = new Date(exam.start_time);
+                        let timeLabel = "";
+                        if (start.toDateString() === new Date().toDateString()) {
+                            timeLabel = `আজ, ${start.toLocaleTimeString("bn-BD", { hour: "numeric", minute: "2-digit" })}`;
+                        } else {
+                            timeLabel = start.toLocaleDateString("bn-BD", {
+                            day: "numeric",
+                            month: "long",
+                            });
+                        }
+
+                        return (
+                            <div
+                              key={exam.id}
+                              onClick={() => handleExamClick(exam.id)}
+                              className={`bg-white dark:bg-[#1C1C1E] border border-gray-100 dark:border-white/5 rounded-2xl p-4 flex items-center justify-between shadow-sm cursor-pointer ${colorTheme.hover} hover:shadow-md transition-all group`}
+                            >
+                              <div className="flex items-start gap-4">
+                                <div
+                                  className={`w-10 h-10 rounded-full ${colorTheme.bg} flex items-center justify-center ${colorTheme.text} mt-1 shrink-0`}
+                                >
+                                  {colorTheme.icon}
+                                </div>
+                                <div>
+                                  <div className="flex items-center gap-2 mb-1">
+                                    <span className="text-xs font-semibold text-gray-500">
+                                      {exam.subject || "General"}
+                                    </span>
+                                    {submission && (
+                                      <span className="text-[9px] font-bold text-green-600 bg-green-50 dark:bg-green-900/30 dark:text-green-400 px-1.5 py-0.5 rounded uppercase tracking-wider flex items-center gap-1">
+                                        <CheckCircle2 size={10} /> Taken
+                                      </span>
+                                    )}
+                                  </div>
+                                  <h4 className="font-bold text-gray-900 dark:text-white text-[15px] mb-1.5 line-clamp-1">
+                                    {exam.title}
+                                  </h4>
+                                  <div className="flex items-center gap-3 text-xs text-gray-400 font-medium">
+                                    <div className="flex items-center gap-1">
+                                      <Clock className="w-3.5 h-3.5" />
+                                      <span>{exam.duration_minutes} মিনিট</span>
+                                    </div>
+                                    <div className="flex items-center gap-1">
+                                      <FileText className="w-3.5 h-3.5" />
+                                      <span>{exam.questions?.length || exam.total_marks || 0} প্রশ্ন</span>
+                                    </div>
+                                  </div>
+                                </div>
+                              </div>
+                              <div className="flex flex-col items-end gap-2 shrink-0">
+                                <span className="text-[11px] font-semibold text-gray-400">
+                                  {timeLabel}
+                                </span>
+                                {submission ? (
+                                    <div className="text-right">
+                                        <span className="block text-lg font-bold text-gray-900 dark:text-white">
+                                            {Number(submission.obtained_marks).toFixed(1)}
+                                        </span>
+                                        <span className="text-[10px] text-gray-400">
+                                            / {submission.total_marks}
+                                        </span>
+                                    </div>
+                                ) : (
+                                    <div className="w-6 h-6 rounded-full border border-gray-200 dark:border-white/10 flex items-center justify-center text-gray-400 group-hover:bg-gray-100 dark:group-hover:bg-white/10 group-hover:text-gray-600 dark:group-hover:text-white transition-colors">
+                                      <ChevronRight className="w-4 h-4" />
+                                    </div>
+                                )}
+                              </div>
+                            </div>
+                        );
+                    })}
+                </div>
+            )}
+          </div>
+        )}
+
+        {/* --- UPCOMING VIEW --- */}
+        {activeView === "upcoming" && (
+          <div className="space-y-6 animate-in fade-in slide-in-from-bottom-2">
+            <div className="flex items-center gap-2 mb-4">
+              <button onClick={() => setActiveView('home')} className="p-2 hover:bg-gray-100 dark:hover:bg-white/10 rounded-full">
+                <ChevronRight className="rotate-180" size={20} />
+              </button>
+              <h2 className="text-xl font-bold dark:text-white">Upcoming Exams</h2>
+            </div>
+            {upcoming.length === 0 ? (
+                <div className="text-center py-20 opacity-50">
+                    <Calendar className="mx-auto mb-2 text-gray-300" size={32} />
+                    <p className="text-xs">No upcoming exams found</p>
+                </div>
+            ) : (
+                <div className="space-y-3">
+                    {upcoming.map(exam => (
+                        <UpcomingExamCard key={exam.id} exam={exam} />
+                    ))}
+                </div>
+            )}
+          </div>
+        )}
+
+        {/* --- LEADERBOARD VIEW --- */}
+        {activeView === "leaderboard" && (
+          <div className="space-y-6 animate-in fade-in slide-in-from-bottom-2">
+             <div className="flex items-center gap-2 mb-4">
+              <button onClick={() => setActiveView('home')} className="p-2 hover:bg-gray-100 dark:hover:bg-white/10 rounded-full">
+                <ChevronRight className="rotate-180" size={20} />
+              </button>
+              <h2 className="text-xl font-bold dark:text-white">Leaderboard</h2>
+            </div>
+            
+            {!studentIdentity ? (
+                <div className="text-center py-20 bg-white dark:bg-[#1C1C1E] rounded-3xl shadow-sm">
+                    <Lock className="mx-auto mb-4 text-gray-300" size={48} />
+                    <h3 className="text-lg font-bold mb-2">Login Required</h3>
+                    <p className="text-gray-500 text-sm mb-6">Please join an exam to verify your identity and see the leaderboard.</p>
+                    <button onClick={() => setActiveView('home')} className="bg-primary text-white px-6 py-2 rounded-full font-bold text-sm">
+                        Go Home
+                    </button>
+                </div>
+            ) : (
+                <div className="bg-white dark:bg-[#1C1C1E] rounded-3xl p-6 shadow-sm border border-gray-100 dark:border-white/5 text-center py-12">
+                    <Trophy className="w-16 h-16 text-yellow-500 mx-auto mb-4" />
+                    <h3 className="text-lg font-bold mb-2">Top 20 Leaderboard</h3>
+                    <p className="text-gray-500 text-sm mb-6">Global ranking based on total points</p>
+                    
+                    {/* Placeholder for leaderboard list */}
+                    <div className="space-y-3 opacity-50 pointer-events-none filter blur-[2px]">
+                        {[1,2,3].map(i => (
+                            <div key={i} className="flex items-center justify-between p-3 bg-gray-50 dark:bg-white/5 rounded-xl">
+                                <div className="flex items-center gap-3">
+                                    <span className="font-bold text-gray-400">#{i}</span>
+                                    <div className="w-8 h-8 bg-gray-200 rounded-full"></div>
+                                    <div className="h-3 w-24 bg-gray-200 rounded"></div>
+                                </div>
+                                <div className="h-3 w-10 bg-gray-200 rounded"></div>
+                            </div>
+                        ))}
+                    </div>
+                    
+                    <div className="mt-8 p-4 bg-blue-50 dark:bg-blue-900/10 rounded-2xl border border-blue-100 dark:border-blue-900/20">
+                        <p className="text-xs font-bold text-blue-600 dark:text-blue-400 uppercase mb-1">Your Rank</p>
+                        <div className="flex items-center justify-between">
+                            <div className="flex items-center gap-3">
+                                 <div className="w-8 h-8 bg-primary text-white rounded-full flex items-center justify-center font-bold text-xs">
+                                    {studentIdentity?.name?.[0] || 'U'}
+                                 </div>
+                                 <span className="font-bold text-sm">{studentIdentity?.name || 'You'}</span>
+                            </div>
+                            <span className="font-bold text-lg">#{Math.floor(Math.random() * 50) + 1}</span>
+                        </div>
+                    </div>
+                </div>
+            )}
           </div>
         )}
 
