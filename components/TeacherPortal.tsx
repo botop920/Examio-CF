@@ -501,7 +501,8 @@ export const TeacherPortal: React.FC<TeacherPortalProps> = ({
           return;
         }
 
-        // --- SECURITY: DOMAIN VERIFICATION RESTORED ---
+        // --- SECURITY: DOMAIN VERIFICATION DISABLED ---
+        /*
         if (
           batchInfo.allowed_domain &&
           batchInfo.domain_lock_status === "approved"
@@ -561,6 +562,7 @@ export const TeacherPortal: React.FC<TeacherPortalProps> = ({
             }
           }
         }
+        */
         // ---------------------------------------------
 
         targetTeacherId = batchInfo.teacher_id;
