@@ -1304,13 +1304,13 @@ export const TeacherPortal: React.FC<TeacherPortalProps> = ({
             </div>
 
             <div className="space-y-3">
-                {exams.filter(e => e.title.toLowerCase().includes(searchTerm.toLowerCase()) || e.subject?.toLowerCase().includes(searchTerm.toLowerCase())).length === 0 ? (
+                {exams.filter(e => (e.title || "").toLowerCase().includes(searchTerm.toLowerCase()) || (e.subject || "").toLowerCase().includes(searchTerm.toLowerCase())).length === 0 ? (
                     <div className="text-center py-20 opacity-50">
                         <Search className="mx-auto mb-2 text-gray-300" size={32} />
                         <p className="text-xs">No exams found</p>
                     </div>
                 ) : (
-                    exams.filter(e => e.title.toLowerCase().includes(searchTerm.toLowerCase()) || e.subject?.toLowerCase().includes(searchTerm.toLowerCase())).map(exam => {
+                    exams.filter(e => (e.title || "").toLowerCase().includes(searchTerm.toLowerCase()) || (e.subject || "").toLowerCase().includes(searchTerm.toLowerCase())).map(exam => {
                          const submission = mySubmissions.find(s => s.exam_id === exam.id);
                          return (
                             <PremiumExamCard 
@@ -1368,10 +1368,10 @@ export const TeacherPortal: React.FC<TeacherPortalProps> = ({
                                                     {idx + 1}
                                                 </div>
                                                 <div className="w-8 h-8 bg-gray-200 dark:bg-white/10 rounded-full flex items-center justify-center text-xs font-bold text-gray-500">
-                                                    {student.name[0]}
+                                                    {(student.name || "U")[0]}
                                                 </div>
                                                 <div className="text-left">
-                                                    <p className="font-bold text-sm text-gray-900 dark:text-white">{student.name}</p>
+                                                    <p className="font-bold text-sm text-gray-900 dark:text-white">{student.name || "Unknown"}</p>
                                                     <p className="text-[10px] text-gray-400">Roll: {student.roll}</p>
                                                 </div>
                                             </div>
