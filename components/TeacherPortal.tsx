@@ -340,7 +340,7 @@ export const TeacherPortal: React.FC<TeacherPortalProps> = ({
 
   // Mobile App Navigation State
   const [activeView, setActiveView] = useState<
-    "home" | "analytics" | "mistakes" | "profile" | "leaderboard" | "upcoming" | "past"
+    "home" | "analytics" | "mistakes" | "profile" | "leaderboard" | "upcoming" | "past" | "search"
   >("home");
   const [now, setNow] = useState(new Date());
 
@@ -365,15 +365,63 @@ export const TeacherPortal: React.FC<TeacherPortalProps> = ({
   const [loadingMistakes, setLoadingMistakes] = useState(false);
   const observer = useRef<IntersectionObserver | null>(null);
 
-  // Analytics Stats
-  const [analytics, setAnalytics] = useState<any>({
-    takenCount: 0,
-    totalConducted: 0,
-    avgPercentage: 0,
-    totalPossible: 0,
-    totalObtained: 0,
-    graphData: [],
-  });
+  // Leaderboard Data
+  const [leaderboardData, setLeaderboardData] = useState<any[]>([]);
+  const [loadingLeaderboard, setLoadingLeaderboard] = useState(false);
+  const [myRank, setMyRank] = useState<number | null>(null);
+
+  useEffect(() => {
+    if (activeView === "leaderboard" && contextTeacherId) {
+      fetchLeaderboard();
+    }
+  }, [activeView, contextTeacherId]);
+
+  const fetchLeaderboard = async () => {
+    if (!contextTeacherId) return;
+    setLoadingLeaderboard(true);
+    try {
+      // Fetch all submissions for this teacher's exams
+      const { data, error } = await supabase
+        .from("exam_submissions")
+        .select("student_name, student_roll, obtained_marks, exam_id")
+        .eq("teacher_id", contextTeacherId);
+
+      if (error) throw error;
+
+      if (data) {
+        // Aggregate scores by student roll
+        const studentScores: { [roll: string]: { name: string; total: number } } = {};
+        
+        data.forEach((sub) => {
+          if (!studentScores[sub.student_roll]) {
+            studentScores[sub.student_roll] = { name: sub.student_name, total: 0 };
+          }
+          studentScores[sub.student_roll].total += Number(sub.obtained_marks) || 0;
+        });
+
+        // Convert to array and sort
+        const sortedLeaderboard = Object.entries(studentScores)
+          .map(([roll, info]) => ({
+            roll,
+            name: info.name,
+            total_points: info.total,
+          }))
+          .sort((a, b) => b.total_points - a.total_points);
+
+        setLeaderboardData(sortedLeaderboard.slice(0, 20)); // Top 20
+
+        // Find my rank
+        if (studentIdentity) {
+          const rank = sortedLeaderboard.findIndex(s => s.roll === studentIdentity.roll) + 1;
+          setMyRank(rank > 0 ? rank : null);
+        }
+      }
+    } catch (err) {
+      console.error("Leaderboard fetch error:", err);
+    } finally {
+      setLoadingLeaderboard(false);
+    }
+  };
 
   // Announcements State
   const [announcements, setAnnouncements] = useState<any[]>([]);
@@ -855,7 +903,7 @@ export const TeacherPortal: React.FC<TeacherPortalProps> = ({
         </div>
         <div className="flex items-center gap-3">
           <button
-            onClick={() => setActiveView('analytics')}
+            onClick={() => setActiveView('search')}
             className="p-2 bg-gray-100 dark:bg-white/10 rounded-full text-gray-600 dark:text-gray-300"
           >
             <Search size={18} />
@@ -1235,6 +1283,49 @@ export const TeacherPortal: React.FC<TeacherPortalProps> = ({
           </div>
         )}
 
+        {/* --- SEARCH VIEW --- */}
+        {activeView === "search" && (
+          <div className="space-y-6 animate-in fade-in slide-in-from-bottom-2">
+             <div className="flex items-center gap-2 mb-4">
+              <button onClick={() => setActiveView('home')} className="p-2 hover:bg-gray-100 dark:hover:bg-white/10 rounded-full">
+                <ChevronRight className="rotate-180" size={20} />
+              </button>
+              <div className="flex-1 relative">
+                  <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400" size={16} />
+                  <input 
+                    type="text" 
+                    placeholder="Search exams..." 
+                    value={searchTerm}
+                    onChange={(e) => setSearchTerm(e.target.value)}
+                    className="w-full pl-9 pr-4 py-2 bg-white dark:bg-[#1C1C1E] border border-gray-200 dark:border-white/10 rounded-full text-sm focus:outline-none focus:border-primary"
+                    autoFocus
+                  />
+              </div>
+            </div>
+
+            <div className="space-y-3">
+                {exams.filter(e => e.title.toLowerCase().includes(searchTerm.toLowerCase()) || e.subject?.toLowerCase().includes(searchTerm.toLowerCase())).length === 0 ? (
+                    <div className="text-center py-20 opacity-50">
+                        <Search className="mx-auto mb-2 text-gray-300" size={32} />
+                        <p className="text-xs">No exams found</p>
+                    </div>
+                ) : (
+                    exams.filter(e => e.title.toLowerCase().includes(searchTerm.toLowerCase()) || e.subject?.toLowerCase().includes(searchTerm.toLowerCase())).map(exam => {
+                         const submission = mySubmissions.find(s => s.exam_id === exam.id);
+                         return (
+                            <PremiumExamCard 
+                                key={exam.id} 
+                                exam={exam} 
+                                submission={submission}
+                                onClick={() => handleExamClick(exam.id)} 
+                            />
+                        );
+                    })
+                )}
+            </div>
+          </div>
+        )}
+
         {/* --- LEADERBOARD VIEW --- */}
         {activeView === "leaderboard" && (
           <div className="space-y-6 animate-in fade-in slide-in-from-bottom-2">
@@ -1255,37 +1346,59 @@ export const TeacherPortal: React.FC<TeacherPortalProps> = ({
                     </button>
                 </div>
             ) : (
-                <div className="bg-white dark:bg-[#1C1C1E] rounded-3xl p-6 shadow-sm border border-gray-100 dark:border-white/5 text-center py-12">
+                <div className="bg-white dark:bg-[#1C1C1E] rounded-3xl p-6 shadow-sm border border-gray-100 dark:border-white/5 text-center py-8">
                     <Trophy className="w-16 h-16 text-yellow-500 mx-auto mb-4" />
                     <h3 className="text-lg font-bold mb-2">Top 20 Leaderboard</h3>
                     <p className="text-gray-500 text-sm mb-6">Global ranking based on total points</p>
                     
-                    {/* Placeholder for leaderboard list */}
-                    <div className="space-y-3 opacity-50 pointer-events-none filter blur-[2px]">
-                        {[1,2,3].map(i => (
-                            <div key={i} className="flex items-center justify-between p-3 bg-gray-50 dark:bg-white/5 rounded-xl">
-                                <div className="flex items-center gap-3">
-                                    <span className="font-bold text-gray-400">#{i}</span>
-                                    <div className="w-8 h-8 bg-gray-200 rounded-full"></div>
-                                    <div className="h-3 w-24 bg-gray-200 rounded"></div>
-                                </div>
-                                <div className="h-3 w-10 bg-gray-200 rounded"></div>
-                            </div>
-                        ))}
-                    </div>
-                    
-                    <div className="mt-8 p-4 bg-blue-50 dark:bg-blue-900/10 rounded-2xl border border-blue-100 dark:border-blue-900/20">
-                        <p className="text-xs font-bold text-blue-600 dark:text-blue-400 uppercase mb-1">Your Rank</p>
-                        <div className="flex items-center justify-between">
-                            <div className="flex items-center gap-3">
-                                 <div className="w-8 h-8 bg-primary text-white rounded-full flex items-center justify-center font-bold text-xs">
-                                    {studentIdentity?.name?.[0] || 'U'}
-                                 </div>
-                                 <span className="font-bold text-sm">{studentIdentity?.name || 'You'}</span>
-                            </div>
-                            <span className="font-bold text-lg">#{Math.floor(Math.random() * 50) + 1}</span>
+                    {loadingLeaderboard ? (
+                        <div className="py-10">
+                            <Loader2 className="animate-spin mx-auto text-primary" />
                         </div>
-                    </div>
+                    ) : (
+                        <>
+                            <div className="space-y-3 mb-8">
+                                {leaderboardData.length === 0 ? (
+                                    <p className="text-sm text-gray-400">No data available yet.</p>
+                                ) : (
+                                    leaderboardData.map((student, idx) => (
+                                        <div key={idx} className="flex items-center justify-between p-3 bg-gray-50 dark:bg-white/5 rounded-xl">
+                                            <div className="flex items-center gap-3">
+                                                <div className={`w-6 h-6 flex items-center justify-center rounded-full text-xs font-bold ${idx === 0 ? 'bg-yellow-100 text-yellow-700' : idx === 1 ? 'bg-gray-200 text-gray-700' : idx === 2 ? 'bg-orange-100 text-orange-700' : 'bg-gray-100 text-gray-500'}`}>
+                                                    {idx + 1}
+                                                </div>
+                                                <div className="w-8 h-8 bg-gray-200 dark:bg-white/10 rounded-full flex items-center justify-center text-xs font-bold text-gray-500">
+                                                    {student.name[0]}
+                                                </div>
+                                                <div className="text-left">
+                                                    <p className="font-bold text-sm text-gray-900 dark:text-white">{student.name}</p>
+                                                    <p className="text-[10px] text-gray-400">Roll: {student.roll}</p>
+                                                </div>
+                                            </div>
+                                            <div className="font-bold text-primary text-sm">
+                                                {student.total_points.toFixed(0)} pts
+                                            </div>
+                                        </div>
+                                    ))
+                                )}
+                            </div>
+                            
+                            {myRank && (
+                                <div className="mt-4 p-4 bg-blue-50 dark:bg-blue-900/10 rounded-2xl border border-blue-100 dark:border-blue-900/20 sticky bottom-4 shadow-lg">
+                                    <p className="text-xs font-bold text-blue-600 dark:text-blue-400 uppercase mb-1 text-left">Your Rank</p>
+                                    <div className="flex items-center justify-between">
+                                        <div className="flex items-center gap-3">
+                                             <div className="w-8 h-8 bg-primary text-white rounded-full flex items-center justify-center font-bold text-xs">
+                                                {studentIdentity?.name?.[0] || 'U'}
+                                             </div>
+                                             <span className="font-bold text-sm">{studentIdentity?.name || 'You'}</span>
+                                        </div>
+                                        <span className="font-bold text-lg">#{myRank}</span>
+                                    </div>
+                                </div>
+                            )}
+                        </>
+                    )}
                 </div>
             )}
           </div>
