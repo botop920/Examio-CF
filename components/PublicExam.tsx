@@ -135,7 +135,7 @@ export const PublicExam: React.FC<PublicExamProps> = ({ examId, theme, toggleThe
       if (data) {
           setAnnouncements(data);
           const lastRead = localStorage.getItem(`last_read_announcement_${teacherId}`);
-          const newCount = data.filter(a => !lastRead || new Date(a.created_at) > new Date(lastRead)).length;
+          const newCount = data.filter((a: any) => !lastRead || new Date(a.created_at) > new Date(lastRead)).length;
           setUnreadCount(newCount);
       }
   };
@@ -248,7 +248,7 @@ export const PublicExam: React.FC<PublicExamProps> = ({ examId, theme, toggleThe
       .on(
         'postgres_changes',
         { event: 'UPDATE', schema: 'public', table: 'exams', filter: `id=eq.${examId}` },
-        async (payload) => {
+        async (payload: any) => {
            const newStatus = payload.new.status;
            setExam((prev: any) => ({ ...prev, ...payload.new }));
            if (newStatus === 'published' && (stage === 'waiting' || stage === 'initial')) {
@@ -578,7 +578,7 @@ export const PublicExam: React.FC<PublicExamProps> = ({ examId, theme, toggleThe
                 student_name: studentName,
                 student_roll: studentRoll,
                 last_active_at: new Date().toISOString()
-            }, { onConflict: 'teacher_id,student_roll' }).then(({ error }) => {
+            }, { onConflict: 'teacher_id,student_roll' }).then(({ error }: any) => {
                 if (error) console.error("Error saving student info:", error);
             });
         }

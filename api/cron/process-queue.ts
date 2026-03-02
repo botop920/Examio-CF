@@ -35,7 +35,7 @@ export default async function handler(req: Request, env: any) {
     const batchSize = batchSizeStr ? parseInt(batchSizeStr) : 50;
 
     // 2. Pop batch from Redis
-    const rawData = await redis.lpop(QUEUE_KEY, batchSize);
+    const rawData: any = await redis.lpop(QUEUE_KEY, batchSize);
 
     if (!rawData || rawData.length === 0) {
       return new Response(JSON.stringify({ message: 'Queue is empty' }), { status: 200 });
@@ -49,7 +49,7 @@ export default async function handler(req: Request, env: any) {
             console.error("JSON Parse Error on item:", item);
             return null;
         }
-    }).filter(p => p !== null); // Remove failed parses
+    }).filter((p: any) => p !== null); // Remove failed parses
 
     if (payloads.length === 0) {
         return new Response(JSON.stringify({ message: 'No valid payloads found' }), { status: 200 });

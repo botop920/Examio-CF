@@ -7,6 +7,7 @@ import toast from 'react-hot-toast';
 import jsPDF from 'jspdf';
 import autoTable from 'jspdf-autotable';
 import html2canvas from 'html2canvas';
+import { AdvancedAnalytics } from './AdvancedAnalytics';
 
 interface ExamResultsProps {
   examId: string;
@@ -39,6 +40,9 @@ export const ExamResults: React.FC<ExamResultsProps> = ({ examId, onBack }) => {
   
   // Grading State
   const [manualMarks, setManualMarks] = useState<Record<string, number>>({});
+
+  // View State
+  const [viewMode, setViewMode] = useState<'leaderboard' | 'analytics'>('leaderboard');
 
   useEffect(() => {
     fetchSubmissions();
@@ -318,25 +322,44 @@ export const ExamResults: React.FC<ExamResultsProps> = ({ examId, onBack }) => {
                </div>
                
                <div className="flex items-center gap-3 w-full md:w-auto">
-                   <div className="relative w-full md:w-64 group">
-                       <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400 group-focus-within:text-primary transition-colors" size={16} />
-                       <input 
-                          type="text" 
-                          placeholder="নাম বা রোল..." 
-                          value={searchTerm}
-                          onChange={e => setSearchTerm(e.target.value)}
-                          className="w-full h-9 md:h-10 pl-9 pr-4 rounded-xl bg-white dark:bg-white/10 border border-gray-100 dark:border-white/5 focus:border-primary/30 outline-none text-sm dark:text-white transition-all shadow-sm"
-                       />
+                   <div className="flex bg-gray-100 dark:bg-white/5 p-1 rounded-xl">
+                       <button 
+                         onClick={() => setViewMode('leaderboard')}
+                         className={`px-4 py-2 rounded-lg text-xs font-bold transition-all flex items-center gap-2 ${viewMode === 'leaderboard' ? 'bg-white dark:bg-white/10 shadow-sm text-primary' : 'text-gray-500'}`}
+                       >
+                           <Trophy size={14} /> Leaderboard
+                       </button>
+                       <button 
+                         onClick={() => setViewMode('analytics')}
+                         className={`px-4 py-2 rounded-lg text-xs font-bold transition-all flex items-center gap-2 ${viewMode === 'analytics' ? 'bg-white dark:bg-white/10 shadow-sm text-primary' : 'text-gray-500'}`}
+                       >
+                           <TrendingUp size={14} /> Analytics
+                       </button>
                    </div>
                    
-                   <button 
-                      onClick={() => setShowDownloadModal(true)}
-                      disabled={isDownloading}
-                      className="h-9 md:h-10 px-4 bg-primary text-white rounded-xl font-bold text-xs flex items-center gap-2 shadow-lg shadow-primary/20 hover:bg-primary-dark active:scale-95 transition-all disabled:opacity-70 whitespace-nowrap"
-                   >
-                      {isDownloading ? <Loader2 className="animate-spin" size={16} /> : <Download size={16} />}
-                      <span className="hidden sm:inline">Result Sheet</span>
-                   </button>
+                   {viewMode === 'leaderboard' && (
+                     <div className="relative w-full md:w-64 group">
+                         <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400 group-focus-within:text-primary transition-colors" size={16} />
+                         <input 
+                            type="text" 
+                            placeholder="নাম বা রোল..." 
+                            value={searchTerm}
+                            onChange={e => setSearchTerm(e.target.value)}
+                            className="w-full h-9 md:h-10 pl-9 pr-4 rounded-xl bg-white dark:bg-white/10 border border-gray-100 dark:border-white/5 focus:border-primary/30 outline-none text-sm dark:text-white transition-all shadow-sm"
+                         />
+                     </div>
+                   )}
+                   
+                   {viewMode === 'leaderboard' && (
+                     <button 
+                        onClick={() => setShowDownloadModal(true)}
+                        disabled={isDownloading}
+                        className="h-9 md:h-10 px-4 bg-primary text-white rounded-xl font-bold text-xs flex items-center gap-2 shadow-lg shadow-primary/20 hover:bg-primary-dark active:scale-95 transition-all disabled:opacity-70 whitespace-nowrap"
+                     >
+                        {isDownloading ? <Loader2 className="animate-spin" size={16} /> : <Download size={16} />}
+                        <span className="hidden sm:inline">Result Sheet</span>
+                     </button>
+                   )}
                </div>
            </div>
        </div>
@@ -437,7 +460,7 @@ export const ExamResults: React.FC<ExamResultsProps> = ({ examId, onBack }) => {
        )}
 
        {/* Podium Section (Responsive) */}
-       {filteredSubs.length >= 3 && !searchTerm && (
+       {viewMode === 'leaderboard' && filteredSubs.length >= 3 && !searchTerm && (
            <div className="flex justify-center items-end gap-3 md:gap-6 mb-8 md:mb-12 pt-4">
                {/* 2nd Place */}
                <div className="flex flex-col items-center gap-2 animate-in slide-in-from-bottom-8 duration-700 delay-100 w-1/3 md:w-auto">
@@ -475,101 +498,105 @@ export const ExamResults: React.FC<ExamResultsProps> = ({ examId, onBack }) => {
            </div>
        )}
 
-       {/* Results List */}
-       <div className="bg-white dark:bg-[#1C1C1E] rounded-2xl md:rounded-[32px] shadow-xl shadow-black/5 border border-gray-100 dark:border-white/5 overflow-hidden">
-           {/* Desktop Table Header */}
-           <div className="hidden md:grid grid-cols-12 gap-4 p-5 bg-gray-50/50 dark:bg-white/5 text-xs font-bold text-gray-400 uppercase tracking-widest border-b border-gray-100 dark:border-white/5">
-               <div className="col-span-1 text-center">Rank</div>
-               <div className="col-span-4">Student</div>
-               <div className="col-span-2">Roll</div>
-               <div className="col-span-3">Performance</div>
-               <div className="col-span-2 text-right">Action</div>
-           </div>
+       {/* Results List or Analytics */}
+       {viewMode === 'leaderboard' ? (
+           <div className="bg-white dark:bg-[#1C1C1E] rounded-2xl md:rounded-[32px] shadow-xl shadow-black/5 border border-gray-100 dark:border-white/5 overflow-hidden">
+               {/* Desktop Table Header */}
+               <div className="hidden md:grid grid-cols-12 gap-4 p-5 bg-gray-50/50 dark:bg-white/5 text-xs font-bold text-gray-400 uppercase tracking-widest border-b border-gray-100 dark:border-white/5">
+                   <div className="col-span-1 text-center">Rank</div>
+                   <div className="col-span-4">Student</div>
+                   <div className="col-span-2">Roll</div>
+                   <div className="col-span-3">Performance</div>
+                   <div className="col-span-2 text-right">Action</div>
+               </div>
 
-           <div className="divide-y divide-gray-100 dark:divide-white/5">
-               {loading ? (
-                   <div className="p-10 text-center flex flex-col items-center gap-3">
-                       <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary"></div>
-                       <p className="text-gray-400 font-medium">Loading results...</p>
-                   </div>
-               ) : filteredSubs.length === 0 ? (
-                   <div className="p-10 text-center text-gray-400">No results found matching your search.</div>
-               ) : (
-                   filteredSubs.map((sub, idx) => (
-                       <div 
-                           key={sub.id} 
-                           className={`group transition-colors hover:bg-gray-50 dark:hover:bg-white/5 
-                           ${idx < 3 ? 'bg-gradient-to-r from-transparent to-transparent' : ''}
-                           `}
-                       >
-                           {/* Desktop Row */}
-                           <div className="hidden md:grid grid-cols-12 gap-4 p-4 items-center">
-                               <div className="col-span-1 flex justify-center">
-                                   {getRankBadge(idx)}
-                               </div>
-                               <div className="col-span-4">
-                                   <h4 className="font-bold text-[#1D1D1F] dark:text-white text-sm">{sub.student_name}</h4>
-                                   <p className="text-[10px] text-gray-400">{new Date(sub.created_at).toLocaleDateString()}</p>
-                               </div>
-                               <div className="col-span-2 font-mono text-sm text-gray-500">{sub.student_roll}</div>
-                               <div className="col-span-3">
-                                   <div className="flex items-center gap-3">
-                                       <div className="flex-1 h-2 bg-gray-100 dark:bg-white/10 rounded-full overflow-hidden">
-                                           <div 
-                                              className={`h-full rounded-full ${idx === 0 ? 'bg-yellow-500' : idx === 1 ? 'bg-gray-400' : idx === 2 ? 'bg-orange-500' : 'bg-primary'}`} 
-                                              style={{ width: `${(sub.obtained_marks / (sub.total_marks || maxScore)) * 100}%` }}
-                                           ></div>
+               <div className="divide-y divide-gray-100 dark:divide-white/5">
+                   {loading ? (
+                       <div className="p-10 text-center flex flex-col items-center gap-3">
+                           <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary"></div>
+                           <p className="text-gray-400 font-medium">Loading results...</p>
+                       </div>
+                   ) : filteredSubs.length === 0 ? (
+                       <div className="p-10 text-center text-gray-400">No results found matching your search.</div>
+                   ) : (
+                       filteredSubs.map((sub, idx) => (
+                           <div 
+                               key={sub.id} 
+                               className={`group transition-colors hover:bg-gray-50 dark:hover:bg-white/5 
+                               ${idx < 3 ? 'bg-gradient-to-r from-transparent to-transparent' : ''}
+                               `}
+                           >
+                               {/* Desktop Row */}
+                               <div className="hidden md:grid grid-cols-12 gap-4 p-4 items-center">
+                                   <div className="col-span-1 flex justify-center">
+                                       {getRankBadge(idx)}
+                                   </div>
+                                   <div className="col-span-4">
+                                       <h4 className="font-bold text-[#1D1D1F] dark:text-white text-sm">{sub.student_name}</h4>
+                                       <p className="text-[10px] text-gray-400">{new Date(sub.created_at).toLocaleDateString()}</p>
+                                   </div>
+                                   <div className="col-span-2 font-mono text-sm text-gray-500">{sub.student_roll}</div>
+                                   <div className="col-span-3">
+                                       <div className="flex items-center gap-3">
+                                           <div className="flex-1 h-2 bg-gray-100 dark:bg-white/10 rounded-full overflow-hidden">
+                                               <div 
+                                                  className={`h-full rounded-full ${idx === 0 ? 'bg-yellow-500' : idx === 1 ? 'bg-gray-400' : idx === 2 ? 'bg-orange-500' : 'bg-primary'}`} 
+                                                  style={{ width: `${(sub.obtained_marks / (sub.total_marks || maxScore)) * 100}%` }}
+                                               ></div>
+                                           </div>
+                                           <span className="font-bold text-sm text-[#1D1D1F] dark:text-white w-16 text-right">
+                                               {Number(sub.obtained_marks).toFixed(1)}
+                                           </span>
                                        </div>
-                                       <span className="font-bold text-sm text-[#1D1D1F] dark:text-white w-16 text-right">
-                                           {Number(sub.obtained_marks).toFixed(1)}
-                                       </span>
+                                   </div>
+                                   <div className="col-span-2 text-right">
+                                       <button 
+                                          onClick={() => openStudentDetail(sub)}
+                                          className="inline-flex items-center gap-2 px-4 py-2 bg-gray-100 dark:bg-white/10 hover:bg-primary hover:text-white dark:hover:bg-primary rounded-xl text-xs font-bold transition-all active:scale-95"
+                                       >
+                                           <Eye size={14} /> View
+                                       </button>
                                    </div>
                                </div>
-                               <div className="col-span-2 text-right">
+
+                               {/* Mobile Card Row */}
+                               <div className="md:hidden p-3 flex items-center gap-3">
+                                   <div className="shrink-0 flex items-center justify-center w-8">
+                                       {getRankBadge(idx)}
+                                   </div>
+                                   <div className="flex-1 min-w-0">
+                                       <div className="flex justify-between items-center mb-1 gap-2">
+                                           <h4 className="font-bold text-[#1D1D1F] dark:text-white text-sm truncate">{sub.student_name}</h4>
+                                           <span className="font-mono text-[10px] text-gray-400 bg-gray-50 dark:bg-white/5 px-1.5 py-0.5 rounded shrink-0">{sub.student_roll}</span>
+                                       </div>
+                                       
+                                       <div className="flex items-center gap-2 mt-1.5">
+                                           <div className="flex-1 h-1.5 bg-gray-100 dark:bg-white/10 rounded-full overflow-hidden">
+                                               <div 
+                                                  className={`h-full rounded-full ${idx === 0 ? 'bg-yellow-500' : idx === 1 ? 'bg-gray-400' : idx === 2 ? 'bg-orange-500' : 'bg-primary'}`} 
+                                                  style={{ width: `${(sub.obtained_marks / (sub.total_marks || maxScore)) * 100}%` }}
+                                               ></div>
+                                           </div>
+                                           <span className="font-bold text-xs text-[#1D1D1F] dark:text-white whitespace-nowrap">
+                                               {Number(sub.obtained_marks).toFixed(1)} <span className="text-gray-400 text-[10px]">/ {sub.total_marks}</span>
+                                           </span>
+                                       </div>
+                                   </div>
                                    <button 
                                       onClick={() => openStudentDetail(sub)}
-                                      className="inline-flex items-center gap-2 px-4 py-2 bg-gray-100 dark:bg-white/10 hover:bg-primary hover:text-white dark:hover:bg-primary rounded-xl text-xs font-bold transition-all active:scale-95"
+                                      className="shrink-0 p-2.5 bg-gray-50 dark:bg-white/5 rounded-xl text-gray-400 hover:text-primary transition-colors active:bg-gray-200"
                                    >
-                                       <Eye size={14} /> View
+                                       <Eye size={16} />
                                    </button>
                                </div>
                            </div>
-
-                           {/* Mobile Card Row */}
-                           <div className="md:hidden p-3 flex items-center gap-3">
-                               <div className="shrink-0 flex items-center justify-center w-8">
-                                   {getRankBadge(idx)}
-                               </div>
-                               <div className="flex-1 min-w-0">
-                                   <div className="flex justify-between items-center mb-1 gap-2">
-                                       <h4 className="font-bold text-[#1D1D1F] dark:text-white text-sm truncate">{sub.student_name}</h4>
-                                       <span className="font-mono text-[10px] text-gray-400 bg-gray-50 dark:bg-white/5 px-1.5 py-0.5 rounded shrink-0">{sub.student_roll}</span>
-                                   </div>
-                                   
-                                   <div className="flex items-center gap-2 mt-1.5">
-                                       <div className="flex-1 h-1.5 bg-gray-100 dark:bg-white/10 rounded-full overflow-hidden">
-                                           <div 
-                                              className={`h-full rounded-full ${idx === 0 ? 'bg-yellow-500' : idx === 1 ? 'bg-gray-400' : idx === 2 ? 'bg-orange-500' : 'bg-primary'}`} 
-                                              style={{ width: `${(sub.obtained_marks / (sub.total_marks || maxScore)) * 100}%` }}
-                                           ></div>
-                                       </div>
-                                       <span className="font-bold text-xs text-[#1D1D1F] dark:text-white whitespace-nowrap">
-                                           {Number(sub.obtained_marks).toFixed(1)} <span className="text-gray-400 text-[10px]">/ {sub.total_marks}</span>
-                                       </span>
-                                   </div>
-                               </div>
-                               <button 
-                                  onClick={() => openStudentDetail(sub)}
-                                  className="shrink-0 p-2.5 bg-gray-50 dark:bg-white/5 rounded-xl text-gray-400 hover:text-primary transition-colors active:bg-gray-200"
-                               >
-                                   <Eye size={16} />
-                               </button>
-                           </div>
-                       </div>
-                   ))
-               )}
+                       ))
+                   )}
+               </div>
            </div>
-       </div>
+       ) : (
+           <AdvancedAnalytics exams={[{ id: examId }]} />
+       )}
 
        {/* Student Detail Modal */}
        {selectedSub && (

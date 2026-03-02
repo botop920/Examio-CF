@@ -27,31 +27,31 @@ export default {
         }
         if (url.pathname === "/api/check-result") {
           const { default: handler } = await import("./api/check-result");
-          return await handler(request, env, ctx);
+          return await handler(request, env);
         }
         if (url.pathname === "/api/submit-exam") {
           const { default: handler } = await import("./api/submit-exam");
-          return await handler(request, env, ctx);
+          return await handler(request, env);
         }
         if (url.pathname === "/api/get-exam-questions") {
           const { default: handler } = await import("./api/get-exam-questions");
-          return await handler(request, env, ctx);
+          return await handler(request, env);
         }
         if (url.pathname === "/api/get-leaderboard") {
           const { default: handler } = await import("./api/get-leaderboard");
-          return await handler(request, env, ctx);
+          return await handler(request, env);
         }
         if (url.pathname === "/api/get-mistakes") {
           const { default: handler } = await import("./api/get-mistakes");
-          return await handler(request, env, ctx);
+          return await handler(request, env);
         }
         if (url.pathname === "/api/process-queue") {
           const { default: handler } = await import("./api/process-queue");
-          return await handler(request, env, ctx);
+          return await handler(request, env);
         }
         if (url.pathname === "/api/cron/process-queue") {
           const { default: handler } = await import("./api/cron/process-queue");
-          return await handler(request, env, ctx);
+          return await handler(request, env);
         }
         return new Response("API Route Not Found", { status: 404 });
       } catch (e: any) {

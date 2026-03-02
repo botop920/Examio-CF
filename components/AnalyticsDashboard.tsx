@@ -39,7 +39,13 @@ export const AnalyticsDashboard: React.FC<AnalyticsDashboardProps> = ({ exams })
         console.error('Error fetching analytics:', error);
         // Fallback or error handling
       } else {
-        setData(data);
+        // Ensure arrays are not null
+        const safeData = {
+          overview: data?.overview || { total_participants: 0, avg_marks: 0, max_marks: 0, min_time: 0, max_time: 0 },
+          questions: data?.questions || [],
+          students: data?.students || []
+        };
+        setData(safeData);
       }
     } catch (err) {
       console.error('Error fetching analytics:', err);
@@ -107,7 +113,7 @@ export const AnalyticsDashboard: React.FC<AnalyticsDashboardProps> = ({ exams })
                 <div key={i} className="h-32 bg-gray-200 dark:bg-white/5 rounded-2xl"></div>
             ))}
         </div>
-      ) : data ? (
+      ) : data && data.overview.total_participants > 0 ? (
         <>
           {/* Overview Cards */}
           <div className="grid grid-cols-1 md:grid-cols-4 gap-4">

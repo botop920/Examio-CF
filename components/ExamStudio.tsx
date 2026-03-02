@@ -502,6 +502,12 @@ export const ExamStudio: React.FC<ExamStudioProps> = ({ onExamCreated }) => {
       }
   };
 
+  const confirmGenSelection = () => {
+      // Placeholder for future implementation
+      console.log("Confirm selection");
+      setShowGenPreview(false);
+  };
+
   const handleAiExtraction = async () => {
     if (files.length === 0) return;
     setLoading(true); 

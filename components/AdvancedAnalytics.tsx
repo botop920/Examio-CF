@@ -3,6 +3,8 @@ import { supabase } from '../lib/supabase';
 import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer, PieChart, Pie, Cell, LineChart, Line } from 'recharts';
 import { Loader2, Users, Clock, CheckCircle, XCircle, AlertTriangle, Monitor, Smartphone, Globe } from 'lucide-react';
 
+import { LatexText } from './LatexText';
+
 interface AdvancedAnalyticsProps {
   exams: any[];
 }
@@ -29,13 +31,34 @@ export const AdvancedAnalytics: React.FC<AdvancedAnalyticsProps> = ({ exams }) =
 
       if (subError) throw subError;
 
-      // Fetch Answers
-      const { data: answers, error: ansError } = await supabase
-        .from('student_answers')
-        .select('*, student_submissions!inner(exam_id)')
-        .eq('student_submissions.exam_id', examId);
+      const submissionIds = submissions.map((s: any) => s.id);
 
-      if (ansError) throw ansError;
+      // Fetch Answers
+      let answers: any[] = [];
+      let questionsMap: Record<string, string> = {};
+      
+      if (submissionIds.length > 0) {
+        // Fetch in batches if there are too many submissions, but for now just use 'in'
+        const { data: ansData, error: ansError } = await supabase
+          .from('student_answers')
+          .select('*')
+          .in('submission_id', submissionIds);
+
+        if (ansError) throw ansError;
+        answers = ansData;
+        
+        // Fetch questions for this exam to get text
+        const { data: qData, error: qError } = await supabase
+          .from('questions')
+          .select('id, question_text')
+          .eq('exam_id', examId);
+          
+        if (!qError && qData) {
+            qData.forEach((q: any) => {
+                questionsMap[q.id] = q.question_text;
+            });
+        }
+      }
 
       // Process Data
       const totalParticipants = submissions.length;
@@ -46,7 +69,7 @@ export const AdvancedAnalytics: React.FC<AdvancedAnalyticsProps> = ({ exams }) =
       let deviceStats = { Mobile: 0, Desktop: 0, Unknown: 0 };
       let tabSwitchers = 0;
 
-      submissions.forEach(sub => {
+      submissions.forEach((sub: any) => {
         const time = sub.time_taken || 0;
         if (time > maxTime) maxTime = time;
         if (time < minTime && time > 0) minTime = time;
@@ -84,11 +107,11 @@ export const AdvancedAnalytics: React.FC<AdvancedAnalyticsProps> = ({ exams }) =
       Object.entries(questionStats).forEach(([qId, stats]) => {
         if (stats.correct > maxCorrect) {
           maxCorrect = stats.correct;
-          mostCorrectQ = qId;
+          mostCorrectQ = questionsMap[qId] || qId;
         }
         if (stats.incorrect > maxIncorrect) {
           maxIncorrect = stats.incorrect;
-          mostIncorrectQ = qId;
+          mostIncorrectQ = questionsMap[qId] || qId;
         }
       });
 
@@ -101,7 +124,7 @@ export const AdvancedAnalytics: React.FC<AdvancedAnalyticsProps> = ({ exams }) =
         { name: '81-100%', count: 0 },
       ];
 
-      submissions.forEach(sub => {
+      submissions.forEach((sub: any) => {
         const percent = sub.total_marks > 0 ? (sub.obtained_marks / sub.total_marks) * 100 : 0;
         if (percent <= 20) scoreDistribution[0].count++;
         else if (percent <= 40) scoreDistribution[1].count++;
@@ -144,24 +167,11 @@ export const AdvancedAnalytics: React.FC<AdvancedAnalyticsProps> = ({ exams }) =
 
   return (
     <div className="space-y-6 animate-in fade-in duration-500">
-      <div className="flex justify-between items-center bg-white dark:bg-[#1C1C1E] p-4 rounded-2xl shadow-sm border border-gray-100 dark:border-white/5">
-        <h2 className="text-lg font-bold">Enterprise Analytics</h2>
-        <select 
-          value={selectedExamId} 
-          onChange={(e) => setSelectedExamId(e.target.value)}
-          className="bg-gray-50 dark:bg-white/5 border border-gray-200 dark:border-white/10 rounded-lg px-4 py-2 text-sm font-medium outline-none focus:ring-2 focus:ring-primary"
-        >
-          {exams.map(exam => (
-            <option key={exam.id} value={exam.id}>{exam.title}</option>
-          ))}
-        </select>
-      </div>
-
       {loading ? (
         <div className="flex justify-center items-center h-64">
           <Loader2 className="animate-spin text-primary" size={32} />
         </div>
-      ) : analyticsData ? (
+      ) : analyticsData && analyticsData.totalParticipants > 0 ? (
         <>
           {/* Key Metrics */}
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
@@ -188,18 +198,18 @@ export const AdvancedAnalytics: React.FC<AdvancedAnalyticsProps> = ({ exams }) =
                 <div className="p-2 bg-green-100 text-green-600 rounded-lg"><CheckCircle size={20} /></div>
                 <h3 className="text-sm font-medium text-gray-500">Most Correct Q.</h3>
               </div>
-              <p className="text-sm font-bold truncate" title={analyticsData.mostCorrectQ || 'N/A'}>
-                {analyticsData.mostCorrectQ ? 'ID: ' + analyticsData.mostCorrectQ.substring(0,8) + '...' : 'N/A'}
-              </p>
+              <div className="text-sm font-bold truncate" title={analyticsData.mostCorrectQ || 'N/A'}>
+                {analyticsData.mostCorrectQ ? <LatexText text={analyticsData.mostCorrectQ} /> : 'N/A'}
+              </div>
             </div>
             <div className="bg-white dark:bg-[#1C1C1E] p-6 rounded-2xl shadow-sm border border-gray-100 dark:border-white/5">
               <div className="flex items-center gap-3 mb-2">
                 <div className="p-2 bg-red-100 text-red-600 rounded-lg"><XCircle size={20} /></div>
                 <h3 className="text-sm font-medium text-gray-500">Most Incorrect Q.</h3>
               </div>
-              <p className="text-sm font-bold truncate" title={analyticsData.mostIncorrectQ || 'N/A'}>
-                {analyticsData.mostIncorrectQ ? 'ID: ' + analyticsData.mostIncorrectQ.substring(0,8) + '...' : 'N/A'}
-              </p>
+              <div className="text-sm font-bold truncate" title={analyticsData.mostIncorrectQ || 'N/A'}>
+                {analyticsData.mostIncorrectQ ? <LatexText text={analyticsData.mostIncorrectQ} /> : 'N/A'}
+              </div>
             </div>
           </div>
 
@@ -301,7 +311,12 @@ export const AdvancedAnalytics: React.FC<AdvancedAnalyticsProps> = ({ exams }) =
             </div>
           </div>
         </>
-      ) : null}
+      ) : (
+        <div className="text-center py-20 text-gray-500">
+          <AlertTriangle size={48} className="mx-auto mb-4 opacity-50" />
+          <p>No analytics data available for this exam yet.</p>
+        </div>
+      )}
     </div>
   );
 };

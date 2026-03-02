@@ -365,7 +365,7 @@ export const TeacherProfile: React.FC<{ session: any }> = ({ session }) => {
                        </div>
                    ) : (
                        <div className="space-y-2 max-h-[400px] overflow-y-auto pr-1 custom-scrollbar">
-                           {batches.map((batch) => (
+                           {batches.map((batch: any) => (
                                <div key={batch.id} className="flex items-center justify-between p-3 bg-gray-50 dark:bg-white/5 rounded-lg group">
                                    <div className="min-w-0">
                                        <span className="text-sm font-medium text-[#1D1D1F] dark:text-white truncate block">{batch.name}</span>

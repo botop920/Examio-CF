@@ -12,9 +12,10 @@ import html2canvas from 'html2canvas';
 interface ExamListProps {
     onViewResults?: (examId: string) => void;
     onViewOmr?: (examId: string) => void;
+    userId?: string;
 }
 
-export const ExamList: React.FC<ExamListProps> = ({ onViewResults, onViewOmr }) => {
+export const ExamList: React.FC<ExamListProps> = ({ onViewResults, onViewOmr, userId }) => {
   // ... state declarations ...
   const [exams, setExams] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
@@ -378,7 +379,7 @@ export const ExamList: React.FC<ExamListProps> = ({ onViewResults, onViewOmr }) 
           measureContainer.style.fontFamily = "'Noto Sans Bengali', 'Inter', sans-serif";
           document.body.appendChild(measureContainer);
 
-          const renderedItems = questions.map((q, i) => {
+          const renderedItems = questions.map((q: any, i: number) => {
               const div = document.createElement('div');
               div.innerHTML = renderItem(q, i + 1);
               measureContainer.appendChild(div);
@@ -549,7 +550,7 @@ export const ExamList: React.FC<ExamListProps> = ({ onViewResults, onViewOmr }) 
                   });
 
                   // Add Questions
-                  questions.forEach(q => {
+                  questions.forEach((q: any) => {
                       printQueue.push({
                           type: 'question',
                           ...q

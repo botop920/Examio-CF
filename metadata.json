@@ -1,5 +1,5 @@
 {
-  "name": "Remix: EXAMiO v1 claudflare version",
-  "description": "A comprehensive digital exam management platform for educational institutions featuring AI grading and analytics.",
+  "name": "Student Portal",
+  "description": "A student portal dashboard with exam tracking and progress monitoring.",
   "requestFramePermissions": []
 }

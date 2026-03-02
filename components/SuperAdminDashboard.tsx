@@ -29,7 +29,7 @@ interface AdminProps {
 }
 
 const SuperAdminDashboard: React.FC<AdminProps> = ({ session, theme, toggleTheme }) => {
-    const [activeTab, setActiveTab] = useState<'overview' | 'teachers' | 'students' | 'requests'>('overview');
+    const [activeTab, setActiveTab] = useState<'overview' | 'teachers' | 'students' | 'requests' | 'notifications'>('overview');
     const [loading, setLoading] = useState(false);
     
     // Data States
@@ -100,7 +100,7 @@ const SuperAdminDashboard: React.FC<AdminProps> = ({ session, theme, toggleTheme
                 const { data: fallbackProfiles, error: fallbackError } = await supabase.from('profiles').select('*');
                 
                 if (fallbackProfiles) {
-                    teachersData = fallbackProfiles.map(p => ({
+                    teachersData = fallbackProfiles.map((p: any) => ({
                         ...p,
                         total_exams: 0,
                         live_exams: 0,
@@ -147,7 +147,7 @@ const SuperAdminDashboard: React.FC<AdminProps> = ({ session, theme, toggleTheme
             const studentMap = new Map();
             const examMap = new Map(exams.map((e: any) => [e.id, e]));
             
-            submissions.forEach(sub => {
+            submissions.forEach((sub: any) => {
                 const roll = sub.student_roll;
                 if (!roll) return;
                 
