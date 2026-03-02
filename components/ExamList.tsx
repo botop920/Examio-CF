@@ -84,6 +84,11 @@ export const ExamList: React.FC<ExamListProps> = ({ onViewResults, onViewOmr, us
               if (exam.status === 'published' && endTime && now >= endTime) {
                   newStatus = 'completed';
               }
+
+              // Case 3: Completed exam should go live (Reactivation)
+              if (exam.status === 'completed' && endTime && now < endTime) {
+                  newStatus = 'published';
+              }
               
               if (newStatus !== exam.status) {
                   changed = true;
@@ -203,14 +208,29 @@ export const ExamList: React.FC<ExamListProps> = ({ onViewResults, onViewOmr, us
 
   const handleUpdateExam = async () => {
       if (!editingExam) return;
+      
+      const startTime = editStartTime ? new Date(editStartTime) : null;
+      const endTime = editEndTime ? new Date(editEndTime) : null;
+      const now = new Date();
+
+      let newStatus = editingExam.status;
+      
+      // Auto-publish logic on update
+      if (startTime && now >= startTime && (!endTime || now < endTime)) {
+          newStatus = 'published';
+      } else if (endTime && now >= endTime) {
+          newStatus = 'completed';
+      }
+
       const updates = {
           title: editTitle,
           subject: editSubject,
-          start_time: editStartTime ? new Date(editStartTime).toISOString() : null,
-          end_time: editEndTime ? new Date(editEndTime).toISOString() : null,
+          start_time: startTime ? startTime.toISOString() : null,
+          end_time: endTime ? endTime.toISOString() : null,
           duration_minutes: parseInt(editDuration) || 30,
           per_question_duration: editPerQuestion ? parseInt(editPerQuestion) : null,
-          default_marks: parseFloat(editDefaultMarks) || 1
+          default_marks: parseFloat(editDefaultMarks) || 1,
+          status: newStatus
       };
       
       const { error } = await supabase.from('exams').update(updates).eq('id', editingExam.id);

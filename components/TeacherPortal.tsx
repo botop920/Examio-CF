@@ -336,11 +336,12 @@ export const TeacherPortal: React.FC<TeacherPortalProps> = ({
   const [loading, setLoading] = useState(true);
   const [initError, setInitError] = useState<string | null>(null);
   const [searchTerm, setSearchTerm] = useState("");
+  const [showSearch, setShowSearch] = useState(false);
   const [isEmbed, setIsEmbed] = useState(false);
 
   // Mobile App Navigation State
   const [activeView, setActiveView] = useState<
-    "home" | "analytics" | "mistakes" | "profile" | "leaderboard" | "upcoming" | "past" | "search"
+    "home" | "analytics" | "mistakes" | "profile" | "leaderboard" | "upcoming" | "past"
   >("home");
   const [now, setNow] = useState(new Date());
 
@@ -357,6 +358,8 @@ export const TeacherPortal: React.FC<TeacherPortalProps> = ({
   } | null>(null);
   const [mySubmissions, setMySubmissions] = useState<any[]>([]);
   const [loadingHistory, setLoadingHistory] = useState(false);
+  const [leaderboardData, setLeaderboardData] = useState<any[]>([]);
+  const [loadingLeaderboard, setLoadingLeaderboard] = useState(false);
 
   // Mistakes Data
   const [allMistakes, setAllMistakes] = useState<any[]>([]); // Flat list of all mistakes
@@ -365,63 +368,15 @@ export const TeacherPortal: React.FC<TeacherPortalProps> = ({
   const [loadingMistakes, setLoadingMistakes] = useState(false);
   const observer = useRef<IntersectionObserver | null>(null);
 
-  // Leaderboard Data
-  const [leaderboardData, setLeaderboardData] = useState<any[]>([]);
-  const [loadingLeaderboard, setLoadingLeaderboard] = useState(false);
-  const [myRank, setMyRank] = useState<number | null>(null);
-
-  useEffect(() => {
-    if (activeView === "leaderboard" && contextTeacherId) {
-      fetchLeaderboard();
-    }
-  }, [activeView, contextTeacherId]);
-
-  const fetchLeaderboard = async () => {
-    if (!contextTeacherId) return;
-    setLoadingLeaderboard(true);
-    try {
-      // Fetch all submissions for this teacher's exams
-      const { data, error } = await supabase
-        .from("exam_submissions")
-        .select("student_name, student_roll, obtained_marks, exam_id")
-        .eq("teacher_id", contextTeacherId);
-
-      if (error) throw error;
-
-      if (data) {
-        // Aggregate scores by student roll
-        const studentScores: { [roll: string]: { name: string; total: number } } = {};
-        
-        data.forEach((sub) => {
-          if (!studentScores[sub.student_roll]) {
-            studentScores[sub.student_roll] = { name: sub.student_name, total: 0 };
-          }
-          studentScores[sub.student_roll].total += Number(sub.obtained_marks) || 0;
-        });
-
-        // Convert to array and sort
-        const sortedLeaderboard = Object.entries(studentScores)
-          .map(([roll, info]) => ({
-            roll,
-            name: info.name,
-            total_points: info.total,
-          }))
-          .sort((a, b) => b.total_points - a.total_points);
-
-        setLeaderboardData(sortedLeaderboard.slice(0, 20)); // Top 20
-
-        // Find my rank
-        if (studentIdentity) {
-          const rank = sortedLeaderboard.findIndex(s => s.roll === studentIdentity.roll) + 1;
-          setMyRank(rank > 0 ? rank : null);
-        }
-      }
-    } catch (err) {
-      console.error("Leaderboard fetch error:", err);
-    } finally {
-      setLoadingLeaderboard(false);
-    }
-  };
+  // Analytics Stats
+  const [analytics, setAnalytics] = useState<any>({
+    takenCount: 0,
+    totalConducted: 0,
+    avgPercentage: 0,
+    totalPossible: 0,
+    totalObtained: 0,
+    graphData: [],
+  });
 
   // Announcements State
   const [announcements, setAnnouncements] = useState<any[]>([]);
@@ -501,8 +456,7 @@ export const TeacherPortal: React.FC<TeacherPortalProps> = ({
           return;
         }
 
-        // --- SECURITY: DOMAIN VERIFICATION DISABLED ---
-        /*
+        // --- SECURITY: DOMAIN VERIFICATION RESTORED ---
         if (
           batchInfo.allowed_domain &&
           batchInfo.domain_lock_status === "approved"
@@ -562,7 +516,6 @@ export const TeacherPortal: React.FC<TeacherPortalProps> = ({
             }
           }
         }
-        */
         // ---------------------------------------------
 
         targetTeacherId = batchInfo.teacher_id;
@@ -753,38 +706,74 @@ export const TeacherPortal: React.FC<TeacherPortalProps> = ({
     const liveExams: any[] = [];
     const upcomingExams: any[] = [];
     const pastExams: any[] = [];
-    exams.forEach((exam) => {
+    
+    const filtered = exams.filter(e => 
+      e.title.toLowerCase().includes(searchTerm.toLowerCase()) ||
+      (e.subject && e.subject.toLowerCase().includes(searchTerm.toLowerCase()))
+    );
+
+    filtered.forEach((exam) => {
       const start = exam.start_time ? new Date(exam.start_time) : null;
       if (start && start > now) {
         upcomingExams.push(exam);
         return;
       }
       if (exam.status === "draft") return;
-
-      const end = exam.end_time ? new Date(exam.end_time) : null;
-
-      // 1. If time is over, it's past
-      if (end && end < now) {
+      if (exam.status === "completed" || (exam.end_time && new Date(exam.end_time) < now)) {
           pastExams.push(exam);
           return;
       }
-
-      // 2. If time is in future, it's live (overrides completed status)
-      if (end && end > now) {
-          liveExams.push(exam);
-          return;
-      }
-
-      // 3. If no time limit, check status
-      if (exam.status === "completed") {
-          pastExams.push(exam);
-          return;
-      }
-
       liveExams.push(exam);
     });
     return { live: liveExams, upcoming: upcomingExams, past: pastExams };
-  }, [exams, now]);
+  }, [exams, now, searchTerm]);
+
+  const fetchGlobalLeaderboard = async () => {
+    if (!exams.length) return;
+    setLoadingLeaderboard(true);
+    
+    try {
+      // Get all exam IDs
+      const examIds = exams.map(e => e.id);
+      
+      // Fetch all submissions for these exams
+      const { data, error } = await supabase
+        .from('student_submissions')
+        .select('student_name, student_roll, obtained_marks')
+        .in('exam_id', examIds);
+
+      if (data) {
+        // Aggregate scores by student roll
+        const studentStats: Record<string, { name: string, roll: string, totalScore: number, examsTaken: number }> = {};
+        
+        data.forEach((sub: any) => {
+          const roll = sub.student_roll;
+          if (!studentStats[roll]) {
+            studentStats[roll] = { name: sub.student_name, roll: sub.student_roll, totalScore: 0, examsTaken: 0 };
+          }
+          studentStats[roll].totalScore += (Number(sub.obtained_marks) || 0);
+          studentStats[roll].examsTaken += 1;
+        });
+
+        // Convert to array and sort
+        const leaderboard = Object.values(studentStats)
+          .sort((a, b) => b.totalScore - a.totalScore)
+          .slice(0, 50); // Top 50
+        
+        setLeaderboardData(leaderboard);
+      }
+    } catch (err) {
+      console.error("Leaderboard fetch error:", err);
+    } finally {
+      setLoadingLeaderboard(false);
+    }
+  };
+
+  useEffect(() => {
+    if (activeView === 'leaderboard') {
+      fetchGlobalLeaderboard();
+    }
+  }, [activeView, exams]);
 
   const handleExamClick = (examId: string, asLeaderboard = false) => {
     let url = `/?exam_id=${examId}${isEmbed ? "&embed=true" : ""}`;
@@ -904,12 +893,29 @@ export const TeacherPortal: React.FC<TeacherPortalProps> = ({
           </div>
         </div>
         <div className="flex items-center gap-3">
-          <button
-            onClick={() => setActiveView('search')}
-            className="p-2 bg-gray-100 dark:bg-white/10 rounded-full text-gray-600 dark:text-gray-300"
-          >
-            <Search size={18} />
-          </button>
+          {showSearch ? (
+            <div className="flex items-center bg-gray-100 dark:bg-white/10 rounded-full px-3 py-1.5 animate-in fade-in slide-in-from-right-5">
+              <Search size={14} className="text-gray-400 mr-2" />
+              <input 
+                type="text" 
+                placeholder="Search exams..." 
+                value={searchTerm}
+                onChange={(e) => setSearchTerm(e.target.value)}
+                className="bg-transparent border-none outline-none text-sm w-32 text-gray-900 dark:text-white placeholder-gray-500"
+                autoFocus
+              />
+              <button onClick={() => { setShowSearch(false); setSearchTerm(''); }} className="ml-1 text-gray-400 hover:text-gray-600">
+                <X size={14} />
+              </button>
+            </div>
+          ) : (
+            <button
+              onClick={() => setShowSearch(true)}
+              className="p-2 bg-gray-100 dark:bg-white/10 rounded-full text-gray-600 dark:text-gray-300 transition-colors hover:bg-gray-200 dark:hover:bg-white/20"
+            >
+              <Search size={18} />
+            </button>
+          )}
           <div className="flex items-center gap-1 bg-orange-50 dark:bg-orange-900/20 px-2 py-1 rounded-full">
             <Flame className="w-4 h-4 text-orange-500 fill-orange-500" />
             <span className="text-sm font-bold text-orange-600 dark:text-orange-400">
@@ -1285,49 +1291,6 @@ export const TeacherPortal: React.FC<TeacherPortalProps> = ({
           </div>
         )}
 
-        {/* --- SEARCH VIEW --- */}
-        {activeView === "search" && (
-          <div className="space-y-6 animate-in fade-in slide-in-from-bottom-2">
-             <div className="flex items-center gap-2 mb-4">
-              <button onClick={() => setActiveView('home')} className="p-2 hover:bg-gray-100 dark:hover:bg-white/10 rounded-full">
-                <ChevronRight className="rotate-180" size={20} />
-              </button>
-              <div className="flex-1 relative">
-                  <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400" size={16} />
-                  <input 
-                    type="text" 
-                    placeholder="Search exams..." 
-                    value={searchTerm}
-                    onChange={(e) => setSearchTerm(e.target.value)}
-                    className="w-full pl-9 pr-4 py-2 bg-white dark:bg-[#1C1C1E] border border-gray-200 dark:border-white/10 rounded-full text-sm focus:outline-none focus:border-primary"
-                    autoFocus
-                  />
-              </div>
-            </div>
-
-            <div className="space-y-3">
-                {exams.filter(e => (e.title || "").toLowerCase().includes(searchTerm.toLowerCase()) || (e.subject || "").toLowerCase().includes(searchTerm.toLowerCase())).length === 0 ? (
-                    <div className="text-center py-20 opacity-50">
-                        <Search className="mx-auto mb-2 text-gray-300" size={32} />
-                        <p className="text-xs">No exams found</p>
-                    </div>
-                ) : (
-                    exams.filter(e => (e.title || "").toLowerCase().includes(searchTerm.toLowerCase()) || (e.subject || "").toLowerCase().includes(searchTerm.toLowerCase())).map(exam => {
-                         const submission = mySubmissions.find(s => s.exam_id === exam.id);
-                         return (
-                            <PremiumExamCard 
-                                key={exam.id} 
-                                exam={exam} 
-                                submission={submission}
-                                onClick={() => handleExamClick(exam.id)} 
-                            />
-                        );
-                    })
-                )}
-            </div>
-          </div>
-        )}
-
         {/* --- LEADERBOARD VIEW --- */}
         {activeView === "leaderboard" && (
           <div className="space-y-6 animate-in fade-in slide-in-from-bottom-2">
@@ -1348,59 +1311,61 @@ export const TeacherPortal: React.FC<TeacherPortalProps> = ({
                     </button>
                 </div>
             ) : (
-                <div className="bg-white dark:bg-[#1C1C1E] rounded-3xl p-6 shadow-sm border border-gray-100 dark:border-white/5 text-center py-8">
+                <div className="bg-white dark:bg-[#1C1C1E] rounded-3xl p-6 shadow-sm border border-gray-100 dark:border-white/5 text-center py-12">
                     <Trophy className="w-16 h-16 text-yellow-500 mx-auto mb-4" />
                     <h3 className="text-lg font-bold mb-2">Top 20 Leaderboard</h3>
                     <p className="text-gray-500 text-sm mb-6">Global ranking based on total points</p>
                     
+                    {/* Leaderboard List */}
                     {loadingLeaderboard ? (
-                        <div className="py-10">
-                            <Loader2 className="animate-spin mx-auto text-primary" />
+                        <div className="py-10 flex justify-center">
+                            <Loader2 className="animate-spin text-primary" />
+                        </div>
+                    ) : leaderboardData.length === 0 ? (
+                        <div className="text-center py-10 opacity-50">
+                            <p>No data available yet.</p>
                         </div>
                     ) : (
-                        <>
-                            <div className="space-y-3 mb-8">
-                                {leaderboardData.length === 0 ? (
-                                    <p className="text-sm text-gray-400">No data available yet.</p>
-                                ) : (
-                                    leaderboardData.map((student, idx) => (
-                                        <div key={idx} className="flex items-center justify-between p-3 bg-gray-50 dark:bg-white/5 rounded-xl">
-                                            <div className="flex items-center gap-3">
-                                                <div className={`w-6 h-6 flex items-center justify-center rounded-full text-xs font-bold ${idx === 0 ? 'bg-yellow-100 text-yellow-700' : idx === 1 ? 'bg-gray-200 text-gray-700' : idx === 2 ? 'bg-orange-100 text-orange-700' : 'bg-gray-100 text-gray-500'}`}>
-                                                    {idx + 1}
-                                                </div>
-                                                <div className="w-8 h-8 bg-gray-200 dark:bg-white/10 rounded-full flex items-center justify-center text-xs font-bold text-gray-500">
-                                                    {(student.name || "U")[0]}
-                                                </div>
-                                                <div className="text-left">
-                                                    <p className="font-bold text-sm text-gray-900 dark:text-white">{student.name || "Unknown"}</p>
-                                                    <p className="text-[10px] text-gray-400">Roll: {student.roll}</p>
-                                                </div>
-                                            </div>
-                                            <div className="font-bold text-primary text-sm">
-                                                {student.total_points.toFixed(0)} pts
-                                            </div>
+                        <div className="space-y-3">
+                            {leaderboardData.map((student, i) => (
+                                <div key={i} className={`flex items-center justify-between p-3 rounded-xl ${student.roll === studentIdentity.roll ? 'bg-blue-50 dark:bg-blue-900/20 border border-blue-100 dark:border-blue-900/30' : 'bg-gray-50 dark:bg-white/5'}`}>
+                                    <div className="flex items-center gap-3">
+                                        <div className={`w-6 h-6 rounded-full flex items-center justify-center text-xs font-bold ${i < 3 ? 'bg-yellow-100 text-yellow-700' : 'bg-gray-200 text-gray-500'}`}>
+                                            #{i + 1}
                                         </div>
-                                    ))
-                                )}
-                            </div>
-                            
-                            {myRank && (
-                                <div className="mt-4 p-4 bg-blue-50 dark:bg-blue-900/10 rounded-2xl border border-blue-100 dark:border-blue-900/20 sticky bottom-4 shadow-lg">
-                                    <p className="text-xs font-bold text-blue-600 dark:text-blue-400 uppercase mb-1 text-left">Your Rank</p>
-                                    <div className="flex items-center justify-between">
-                                        <div className="flex items-center gap-3">
-                                             <div className="w-8 h-8 bg-primary text-white rounded-full flex items-center justify-center font-bold text-xs">
-                                                {studentIdentity?.name?.[0] || 'U'}
-                                             </div>
-                                             <span className="font-bold text-sm">{studentIdentity?.name || 'You'}</span>
+                                        <div className="w-8 h-8 bg-white dark:bg-white/10 rounded-full flex items-center justify-center font-bold text-xs text-primary">
+                                            {student.name?.[0]}
                                         </div>
-                                        <span className="font-bold text-lg">#{myRank}</span>
+                                        <div className="text-left">
+                                            <p className="font-bold text-sm text-[#1D1D1F] dark:text-white line-clamp-1">{student.name}</p>
+                                            <p className="text-[10px] text-gray-400">Roll: {student.roll}</p>
+                                        </div>
+                                    </div>
+                                    <div className="text-right">
+                                        <span className="font-bold text-sm block">{Number(student.totalScore).toFixed(0)}</span>
+                                        <span className="text-[10px] text-gray-400">Points</span>
                                     </div>
                                 </div>
-                            )}
-                        </>
+                            ))}
+                        </div>
                     )}
+                    
+                    <div className="mt-8 p-4 bg-blue-50 dark:bg-blue-900/10 rounded-2xl border border-blue-100 dark:border-blue-900/20">
+                        <p className="text-xs font-bold text-blue-600 dark:text-blue-400 uppercase mb-1">Your Rank</p>
+                        <div className="flex items-center justify-between">
+                            <div className="flex items-center gap-3">
+                                 <div className="w-8 h-8 bg-primary text-white rounded-full flex items-center justify-center font-bold text-xs">
+                                    {studentIdentity?.name?.[0] || 'U'}
+                                 </div>
+                                 <span className="font-bold text-sm">{studentIdentity?.name || 'You'}</span>
+                            </div>
+                            <span className="font-bold text-lg">
+                                {leaderboardData.findIndex(s => s.roll === studentIdentity?.roll) !== -1 
+                                    ? `#${leaderboardData.findIndex(s => s.roll === studentIdentity?.roll) + 1}` 
+                                    : '-'}
+                            </span>
+                        </div>
+                    </div>
                 </div>
             )}
           </div>

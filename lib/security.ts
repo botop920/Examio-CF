@@ -42,21 +42,25 @@ const generateSignature = (data: string): string => {
 export const SecureStorage = {
   setItem: (key: string, value: any) => {
     try {
+      if (typeof window === 'undefined' || !window.localStorage) return;
       const stringValue = JSON.stringify(value);
       const signature = generateSignature(stringValue);
       const payload = JSON.stringify({ d: stringValue, s: signature });
       localStorage.setItem(`${STORAGE_PREFIX}${key}`, payload);
     } catch (e) {
-      console.error("Storage Error", e);
+      console.error("Storage Error (setItem):", e);
     }
   },
 
   getItem: (key: string) => {
     try {
+      if (typeof window === 'undefined' || !window.localStorage) return null;
       const raw = localStorage.getItem(`${STORAGE_PREFIX}${key}`);
       if (!raw) return null;
 
       const parsed = JSON.parse(raw);
+      if (!parsed || !parsed.d || !parsed.s) return null;
+
       const calculatedSig = generateSignature(parsed.d);
 
       if (calculatedSig !== parsed.s) {
@@ -67,12 +71,18 @@ export const SecureStorage = {
 
       return JSON.parse(parsed.d);
     } catch (e) {
+      // console.warn("Storage Error (getItem):", e);
       return null;
     }
   },
 
   removeItem: (key: string) => {
-    localStorage.removeItem(`${STORAGE_PREFIX}${key}`);
+    try {
+      if (typeof window === 'undefined' || !window.localStorage) return;
+      localStorage.removeItem(`${STORAGE_PREFIX}${key}`);
+    } catch (e) {
+      console.error("Storage Error (removeItem):", e);
+    }
   }
 };
 
