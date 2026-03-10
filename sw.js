@@ -1,5 +1,5 @@
 
-const CACHE_NAME = 'examio-v1';
+const CACHE_NAME = 'examio-v2';
 const urlsToCache = [
   '/',
   '/index.html',

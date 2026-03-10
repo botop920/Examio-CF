@@ -1,13 +1,14 @@
 
 import React, { useEffect, useState } from 'react';
 import { supabase } from '../lib/supabase';
-import { ArrowLeft, Search, CheckCircle2, Clock, Eye, Save, AlertCircle, X, Trophy, Medal, Crown, TrendingUp, Download, Loader2 } from 'lucide-react';
+import { ArrowLeft, Search, CheckCircle2, Clock, Eye, Save, AlertCircle, X, Trophy, Medal, Crown, TrendingUp, Download, Loader2, FileBarChart } from 'lucide-react';
 import { LatexText } from './LatexText';
 import toast from 'react-hot-toast';
 import jsPDF from 'jspdf';
 import autoTable from 'jspdf-autotable';
 import html2canvas from 'html2canvas';
 import { AdvancedAnalytics } from './AdvancedAnalytics';
+import { Marksheet } from './Marksheet';
 
 interface ExamResultsProps {
   examId: string;
@@ -42,7 +43,7 @@ export const ExamResults: React.FC<ExamResultsProps> = ({ examId, onBack }) => {
   const [manualMarks, setManualMarks] = useState<Record<string, number>>({});
 
   // View State
-  const [viewMode, setViewMode] = useState<'leaderboard' | 'analytics'>('leaderboard');
+  const [viewMode, setViewMode] = useState<'leaderboard' | 'analytics' | 'marksheet'>('leaderboard');
 
   useEffect(() => {
     fetchSubmissions();
@@ -322,18 +323,24 @@ export const ExamResults: React.FC<ExamResultsProps> = ({ examId, onBack }) => {
                </div>
                
                <div className="flex items-center gap-3 w-full md:w-auto">
-                   <div className="flex bg-gray-100 dark:bg-white/5 p-1 rounded-xl">
+                   <div className="flex bg-gray-100 dark:bg-white/5 p-1 rounded-xl overflow-x-auto no-scrollbar">
                        <button 
                          onClick={() => setViewMode('leaderboard')}
-                         className={`px-4 py-2 rounded-lg text-xs font-bold transition-all flex items-center gap-2 ${viewMode === 'leaderboard' ? 'bg-white dark:bg-white/10 shadow-sm text-primary' : 'text-gray-500'}`}
+                         className={`px-4 py-2 rounded-lg text-xs font-bold transition-all flex items-center gap-2 whitespace-nowrap ${viewMode === 'leaderboard' ? 'bg-white dark:bg-white/10 shadow-sm text-primary' : 'text-gray-500'}`}
                        >
                            <Trophy size={14} /> Leaderboard
                        </button>
                        <button 
                          onClick={() => setViewMode('analytics')}
-                         className={`px-4 py-2 rounded-lg text-xs font-bold transition-all flex items-center gap-2 ${viewMode === 'analytics' ? 'bg-white dark:bg-white/10 shadow-sm text-primary' : 'text-gray-500'}`}
+                         className={`px-4 py-2 rounded-lg text-xs font-bold transition-all flex items-center gap-2 whitespace-nowrap ${viewMode === 'analytics' ? 'bg-white dark:bg-white/10 shadow-sm text-primary' : 'text-gray-500'}`}
                        >
                            <TrendingUp size={14} /> Analytics
+                       </button>
+                       <button 
+                         onClick={() => setViewMode('marksheet')}
+                         className={`px-4 py-2 rounded-lg text-xs font-bold transition-all flex items-center gap-2 whitespace-nowrap ${viewMode === 'marksheet' ? 'bg-white dark:bg-white/10 shadow-sm text-primary' : 'text-gray-500'}`}
+                       >
+                           <FileBarChart size={14} /> Marksheet
                        </button>
                    </div>
                    
@@ -498,7 +505,7 @@ export const ExamResults: React.FC<ExamResultsProps> = ({ examId, onBack }) => {
            </div>
        )}
 
-       {/* Results List or Analytics */}
+       {/* Results List or Analytics or Marksheet */}
        {viewMode === 'leaderboard' ? (
            <div className="bg-white dark:bg-[#1C1C1E] rounded-2xl md:rounded-[32px] shadow-xl shadow-black/5 border border-gray-100 dark:border-white/5 overflow-hidden">
                {/* Desktop Table Header */}
@@ -594,8 +601,10 @@ export const ExamResults: React.FC<ExamResultsProps> = ({ examId, onBack }) => {
                    )}
                </div>
            </div>
-       ) : (
+       ) : viewMode === 'analytics' ? (
            <AdvancedAnalytics exams={[{ id: examId }]} />
+       ) : (
+           <Marksheet />
        )}
 
        {/* Student Detail Modal */}

@@ -132,33 +132,7 @@
         animation: fadeInSlideUp 0.4s cubic-bezier(0.16, 1, 0.3, 1) forwards;
       }
     </style>
-  <script type="importmap">
-{
-  "imports": {
-    "react": "https://esm.sh/react@^19.2.4",
-    "react-dom/": "https://esm.sh/react-dom@^19.2.4/",
-    "react/": "https://esm.sh/react@^19.2.4/",
-    "lucide-react": "https://esm.sh/lucide-react@^0.563.0",
-    "react-hot-toast": "https://esm.sh/react-hot-toast@^2.6.0",
-    "@google/genai": "https://esm.sh/@google/genai@^1.38.0",
-    "katex": "https://esm.sh/katex@^0.16.28",
-    "gsap": "https://esm.sh/gsap@^3.14.2",
-    "@supabase/supabase-js": "https://esm.sh/@supabase/supabase-js@^2.93.3",
-    "qrcode.react": "https://esm.sh/qrcode.react@^4.2.0",
-    "vite": "https://esm.sh/vite@^7.3.1",
-    "@vitejs/plugin-react": "https://esm.sh/@vitejs/plugin-react@^5.1.2",
-    "gsap/": "https://esm.sh/gsap@^3.14.2/",
-    "pdfjs-dist": "https://esm.sh/pdfjs-dist@3.11.174",
-    "jspdf": "https://esm.sh/jspdf@2.5.1",
-    "jspdf-autotable": "https://esm.sh/jspdf-autotable@3.8.2",
-    "tailwind-merge": "https://esm.sh/tailwind-merge@^3.4.0",
-    "clsx": "https://esm.sh/clsx@^2.1.1",
-    "browser-image-compression": "https://esm.sh/browser-image-compression@2.0.2",
-    "@upstash/redis": "https://esm.sh/@upstash/redis@^1.36.2",
-    "html2canvas": "https://esm.sh/html2canvas@1.4.1"
-  }
-}
-</script>
+
 </head>
   <body class="bg-background-light dark:bg-background-dark text-text-main dark:text-[#F5F5F7] antialiased transition-colors duration-200">
     <div id="root"></div>
@@ -168,13 +142,11 @@
     <script>
       if ('serviceWorker' in navigator) {
         window.addEventListener('load', () => {
-          navigator.serviceWorker.register('/sw.js')
-            .then(registration => {
-              console.log('SW registered: ', registration);
-            })
-            .catch(registrationError => {
-              console.log('SW registration failed: ', registrationError);
-            });
+          navigator.serviceWorker.getRegistrations().then(function(registrations) {
+            for(let registration of registrations) {
+              registration.unregister();
+            }
+          });
         });
       }
     </script>

@@ -556,7 +556,7 @@ export const TeacherPortal: React.FC<TeacherPortalProps> = ({
       setExams(
         data.sort(
           (a, b) =>
-            new Date(a.created_at).getTime() - new Date(b.created_at).getTime(),
+            new Date(b.created_at).getTime() - new Date(a.created_at).getTime(),
         ),
       );
   };
@@ -1121,7 +1121,7 @@ export const TeacherPortal: React.FC<TeacherPortalProps> = ({
                             </div>
                             <div className="flex items-center gap-1">
                               <FileText className="w-3.5 h-3.5" />
-                              <span>{exam.questions?.length || exam.total_marks || 0} প্রশ্ন</span>
+                              <span>{exam.question_count || exam.total_marks || 0} প্রশ্ন</span>
                             </div>
                           </div>
                         </div>
@@ -1235,7 +1235,7 @@ export const TeacherPortal: React.FC<TeacherPortalProps> = ({
                                     </div>
                                     <div className="flex items-center gap-1">
                                       <FileText className="w-3.5 h-3.5" />
-                                      <span>{exam.questions?.length || exam.total_marks || 0} প্রশ্ন</span>
+                                      <span>{exam.question_count || exam.total_marks || 0} প্রশ্ন</span>
                                     </div>
                                   </div>
                                 </div>

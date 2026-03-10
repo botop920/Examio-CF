@@ -214,6 +214,7 @@ export const ExamStudio: React.FC<ExamStudioProps> = ({ onExamCreated }) => {
           .select('*')
           .eq('teacher_id', user.id)
           .order('created_at', { ascending: false })
+          .order('id', { ascending: false })
           .range(from, to);
 
       if (bankFilterSubject !== 'All') {
@@ -232,7 +233,11 @@ export const ExamStudio: React.FC<ExamStudioProps> = ({ onExamCreated }) => {
           if (isNewFilter || page === 0) {
               setBankQuestions(data);
           } else {
-              setBankQuestions(prev => [...prev, ...data]);
+              setBankQuestions(prev => {
+                  const existingIds = new Set(prev.map(q => q.id));
+                  const newItems = data.filter(q => !existingIds.has(q.id));
+                  return [...prev, ...newItems];
+              });
           }
           setBankHasMore(data.length >= PAGE_SIZE);
       }
@@ -361,7 +366,7 @@ export const ExamStudio: React.FC<ExamStudioProps> = ({ onExamCreated }) => {
           parts.push({ text: promptText });
 
           const result = await ai.models.generateContentStream({
-              model: 'gemini-3-flash-preview', 
+              model: 'gemini-3.1-flash-lite-preview', 
               contents: [{ role: 'user', parts: parts }],
               config: { 
                   temperature: 0.1,
@@ -625,7 +630,7 @@ export const ExamStudio: React.FC<ExamStudioProps> = ({ onExamCreated }) => {
               const prompt = `Task: Solve. INPUT: ${JSON.stringify(payload)} OUTPUT: JSON Array [{ "id": number, "explanation": "..." }] LaTeX for math (WRAP IN $...$). Double escape backslashes. KEEP ORIGINAL LANGUAGE.`;
               try {
                   const response = await ai.models.generateContent({ 
-                      model: 'gemini-3-flash-preview', 
+                      model: 'gemini-3.1-flash-lite-preview', 
                       contents: [{ role: 'user', parts: [{ text: prompt }] }], 
                       config: { 
                           responseMimeType: 'application/json',
@@ -703,7 +708,7 @@ export const ExamStudio: React.FC<ExamStudioProps> = ({ onExamCreated }) => {
           const ai = new GoogleGenAI({ apiKey: process.env.API_KEY });
           const prompt = `Task: Enhance raw question to MCQ. Input: "${newQuestionText}". Rules: Fix grammar, Math to LaTeX (WRAP IN $...$), Generate 4 options, Solve, Write explanation. Output JSON: { "question_text": "...", "options": ["..."], "correct_answer": "...", "explanation": "..." }. IMPORTANT: Escape LaTeX backslashes (e.g. \\\\vec, \\\\frac). KEEP ORIGINAL LANGUAGE.`;
           const response = await ai.models.generateContent({ 
-              model: 'gemini-3-flash-preview', 
+              model: 'gemini-3.1-flash-lite-preview', 
               contents: [{ role: 'user', parts: [{ text: prompt }] }], 
               config: { 
                   responseMimeType: 'application/json',
@@ -979,7 +984,8 @@ export const ExamStudio: React.FC<ExamStudioProps> = ({ onExamCreated }) => {
                   per_question_duration: cleanPerQuestion,
                   default_marks: cleanMarks,
                   negative_marking: cleanNegative,
-                  ai_grading_enabled: aiGradingEnabled
+                  ai_grading_enabled: aiGradingEnabled,
+                  question_count: questions.length
               })
               .select().single();
 

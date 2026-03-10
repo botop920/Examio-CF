@@ -23,7 +23,6 @@ import { TeacherProfile } from './TeacherProfile';
 import { QuestionBank } from './QuestionBank';
 import { ExamResults } from './ExamResults';
 import { WrittenGrading } from './WrittenGrading';
-import { Marksheet } from './Marksheet';
 import { OmrScanner } from './OmrScanner';
 
 const LOGO_LIGHT = "https://res.cloudinary.com/dejm7pz1d/image/upload/v1770135336/IMG_2585_tiorhy.png";
@@ -36,7 +35,7 @@ interface DashboardLayoutProps {
 }
 
 export const DashboardLayout: React.FC<DashboardLayoutProps> = ({ session, theme, toggleTheme }) => {
-  const [activeTab, setActiveTab] = useState<'home' | 'studio' | 'exams' | 'bank' | 'profile' | 'results' | 'grading' | 'marksheet' | 'parents_sms' | 'omr'>('home');
+  const [activeTab, setActiveTab] = useState<'home' | 'studio' | 'exams' | 'bank' | 'profile' | 'results' | 'grading' | 'parents_sms' | 'omr'>('home');
   const [isSidebarOpen, setSidebarOpen] = useState(false);
   const [selectedResultExamId, setSelectedResultExamId] = useState<string | null>(null);
   const [omrExamId, setOmrExamId] = useState<string | null>(null);
@@ -60,7 +59,6 @@ export const DashboardLayout: React.FC<DashboardLayoutProps> = ({ session, theme
     { id: 'studio', label: 'AI এক্সাম স্টুডিও', icon: Sparkles },
     { id: 'exams', label: 'আমার এক্সাম', icon: FileText },
     { id: 'grading', label: 'লিখিত খাতা', icon: FileSignature },
-    { id: 'marksheet', label: 'মার্কশিট', icon: FileBarChart },
     { id: 'bank', label: 'কোয়েশ্চেন ব্যাংক', icon: Library },
     { id: 'parents_sms', label: 'Parents SMS', icon: MessageSquare },
     { id: 'profile', label: 'প্রোফাইল', icon: Settings },
@@ -76,8 +74,6 @@ export const DashboardLayout: React.FC<DashboardLayoutProps> = ({ session, theme
         return <ExamList onViewResults={handleViewResults} onViewOmr={handleViewOmr} userId={session?.user?.id} />;
       case 'grading':
         return <WrittenGrading />;
-      case 'marksheet':
-        return <Marksheet />;
       case 'omr':
         return <OmrScanner initialExamId={omrExamId} onBack={() => setActiveTab('exams')} />;
       case 'bank':
@@ -216,7 +212,6 @@ export const DashboardLayout: React.FC<DashboardLayoutProps> = ({ session, theme
                          activeTab === 'studio' ? 'Exam Studio' : 
                          activeTab === 'exams' ? 'My Exams' :
                          activeTab === 'grading' ? 'Written Grading' :
-                         activeTab === 'marksheet' ? 'Marksheet' :
                          activeTab === 'bank' ? 'Question Bank' :
                          activeTab === 'parents_sms' ? 'Parents SMS' :
                          activeTab === 'omr' ? 'OMR Scanner' :
