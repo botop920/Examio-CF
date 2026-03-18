@@ -11,8 +11,76 @@ import imageCompression from 'browser-image-compression';
 import { jsPDF } from "jspdf";
 import autoTable from "jspdf-autotable";
 
+// Isolated Written Answer Input to prevent full re-renders on every keystroke
+const WrittenAnswerInput = memo(({ questionId, initialValue, onChange }: { questionId: string, initialValue: string, onChange: (id: string, val: string) => void }) => {
+    const [localValue, setLocalValue] = useState(initialValue || '');
+    const lastSentValue = useRef(initialValue || '');
+    
+    useEffect(() => {
+        if (initialValue !== lastSentValue.current) {
+            setLocalValue(initialValue || '');
+            lastSentValue.current = initialValue || '';
+        }
+    }, [initialValue]);
+
+    useEffect(() => {
+        const handler = setTimeout(() => {
+            if (localValue !== lastSentValue.current) {
+                lastSentValue.current = localValue;
+                onChange(questionId, localValue);
+            }
+        }, 500); // 500ms debounce
+        return () => clearTimeout(handler);
+    }, [localValue, questionId, onChange]);
+
+    return (
+        <textarea 
+            placeholder="অথবা টেক্সট লিখুন..."
+            value={localValue}
+            onChange={(e) => setLocalValue(e.target.value)}
+            onBlur={() => {
+                if (localValue !== lastSentValue.current) {
+                    lastSentValue.current = localValue;
+                    onChange(questionId, localValue);
+                }
+            }}
+            className="w-full mt-3 p-3 rounded-xl bg-gray-50 dark:bg-white/5 border border-transparent focus:border-primary/20 outline-none text-sm text-[#1D1D1F] dark:text-white resize-y min-h-[80px]"
+        />
+    );
+});
+
 // Isolated Header to prevent full re-renders
-const ExamHeader = memo(({ title, questionsLength, answeredCount, timeLeft, onManualSubmit, loading, unreadCount, onOpenAnnouncements }: any) => {
+const ExamHeader = memo(({ title, questionsLength, answeredCount, initialTimeLeft, onTimeUp, onTimeUpdate, onManualSubmit, loading, unreadCount, onOpenAnnouncements }: any) => {
+    const [timeLeft, setTimeLeft] = useState(initialTimeLeft);
+    const onTimeUpRef = useRef(onTimeUp);
+    const onTimeUpdateRef = useRef(onTimeUpdate);
+
+    useEffect(() => {
+        onTimeUpRef.current = onTimeUp;
+        onTimeUpdateRef.current = onTimeUpdate;
+    }, [onTimeUp, onTimeUpdate]);
+    
+    useEffect(() => {
+        setTimeLeft(initialTimeLeft);
+    }, [initialTimeLeft]);
+
+    useEffect(() => {
+        if (initialTimeLeft <= 0) return;
+        const timer = setInterval(() => {
+            setTimeLeft((prev: number) => {
+                const newTime = prev - 1;
+                if (onTimeUpdateRef.current) onTimeUpdateRef.current(newTime);
+                if (newTime <= 0) {
+                    clearInterval(timer);
+                    if (onTimeUpRef.current) onTimeUpRef.current();
+                    return 0;
+                }
+                return newTime;
+            });
+        }, 1000);
+        return () => clearInterval(timer);
+    }, [initialTimeLeft]);
+
     const formatTime = (s: number) => { const m = Math.floor(s / 60); const sec = s % 60; return `${m}:${sec.toString().padStart(2, '0')}`; };
     const progressPercent = questionsLength > 0 ? (answeredCount / questionsLength) * 100 : 0;
 
@@ -102,7 +170,8 @@ export const PublicExam: React.FC<PublicExamProps> = ({ examId, theme, toggleThe
   const [aiFeedbacks, setAiFeedbacks] = useState<Record<string, any>>({});
   const [tabSwitchCount, setTabSwitchCount] = useState(0);
   const [questionMarks, setQuestionMarks] = useState<Record<string, number>>({});
-  const [timeLeft, setTimeLeft] = useState(0);
+  const [initialTimeLeft, setInitialTimeLeft] = useState(0);
+  const timeLeftRef = useRef(0);
   const [score, setScore] = useState<number | null>(null);
   const [warningCount, setWarningCount] = useState(0);
 
@@ -282,17 +351,6 @@ export const PublicExam: React.FC<PublicExamProps> = ({ examId, theme, toggleThe
 
   useEffect(() => {
     if (stage !== 'exam') return;
-    
-    const timer = setInterval(() => {
-      setTimeLeft((prev) => {
-        if (prev <= 1) {
-          clearInterval(timer);
-          submitExamRef.current(true); 
-          return 0;
-        }
-        return prev - 1;
-      });
-    }, 1000);
 
     const handleVisibilityChange = () => {
       if (document.hidden) {
@@ -305,7 +363,6 @@ export const PublicExam: React.FC<PublicExamProps> = ({ examId, theme, toggleThe
     document.addEventListener('visibilitychange', handleVisibilityChange);
     
     return () => {
-      clearInterval(timer);
       document.removeEventListener('visibilitychange', handleVisibilityChange);
     };
   }, [stage]);
@@ -452,11 +509,13 @@ export const PublicExam: React.FC<PublicExamProps> = ({ examId, theme, toggleThe
       return `exam_completed_${examId}_${roll.trim()}`;
   };
 
-  const handleAnswerChange = (questionId: string, value: string) => {
-      const newAnswers = { ...answers, [questionId]: value };
-      setAnswers(newAnswers);
-      localStorage.setItem(`exam_answers_${examId}_${studentRoll}`, JSON.stringify(newAnswers));
-  };
+  const handleAnswerChange = useCallback((questionId: string, value: string) => {
+      setAnswers(prev => {
+          const newAnswers = { ...prev, [questionId]: value };
+          localStorage.setItem(`exam_answers_${examId}_${studentRoll}`, JSON.stringify(newAnswers));
+          return newAnswers;
+      });
+  }, [examId, studentRoll]);
 
   // --- MERGE SOLUTIONS INTO QUESTIONS FOR DISPLAY ---
   const mergeSolutionsLocally = (cachedSolutions: any) => {
@@ -617,7 +676,8 @@ export const PublicExam: React.FC<PublicExamProps> = ({ examId, theme, toggleThe
     }
     
     loadSavedAnswers();
-    setTimeLeft(allowedSeconds);
+    setInitialTimeLeft(allowedSeconds);
+    timeLeftRef.current = allowedSeconds;
     setLoading(false);
     setStage('exam');
   };
@@ -629,7 +689,7 @@ export const PublicExam: React.FC<PublicExamProps> = ({ examId, theme, toggleThe
       setStudentRoll('');
   };
 
-  const handleImageUpload = async (questionId: string, file: File) => {
+  const handleImageUpload = useCallback(async (questionId: string, file: File) => {
       if (!file) {
           isUploadingImageRef.current = false;
           return;
@@ -638,18 +698,15 @@ export const PublicExam: React.FC<PublicExamProps> = ({ examId, theme, toggleThe
       try {
           const compressedFile = await imageCompression(file, options);
           setAttachmentFiles(prev => ({ ...prev, [questionId]: compressedFile }));
-          const reader = new FileReader();
-          reader.onloadend = async () => {
-              const base64String = reader.result as string;
-              setAttachments(prev => ({ ...prev, [questionId]: base64String }));
-              isUploadingImageRef.current = false;
-          };
-          reader.readAsDataURL(compressedFile);
+          
+          const objectUrl = URL.createObjectURL(compressedFile);
+          setAttachments(prev => ({ ...prev, [questionId]: objectUrl }));
+          isUploadingImageRef.current = false;
       } catch (error) { 
           toast.error("Image processing failed."); 
           isUploadingImageRef.current = false;
       }
-  };
+  }, []);
 
   // ----------------------------------------------------
   // SUBMIT LOGIC USING REDIS QUEUE + LOCAL CACHE
@@ -694,7 +751,7 @@ export const PublicExam: React.FC<PublicExamProps> = ({ examId, theme, toggleThe
               student_name: studentName,
               student_roll: studentRoll.trim(),
               answers: answersArray,
-              time_taken: (exam.duration_minutes * 60) - timeLeft,
+              time_taken: (exam.duration_minutes * 60) - timeLeftRef.current,
               metadata: {
                   tab_switches: tabSwitchCount,
                   device: /Mobile|Android|iP(ad|hone)/.test(navigator.userAgent) ? 'Mobile' : 'Desktop',
@@ -1112,7 +1169,9 @@ export const PublicExam: React.FC<PublicExamProps> = ({ examId, theme, toggleThe
         title={exam.title}
         questionsLength={questions.length}
         answeredCount={answeredCount}
-        timeLeft={timeLeft}
+        initialTimeLeft={initialTimeLeft}
+        onTimeUp={() => submitExamRef.current(true)}
+        onTimeUpdate={(newTime: number) => { timeLeftRef.current = newTime; }}
         onManualSubmit={handleManualSubmitClick}
         loading={loading}
         unreadCount={unreadCount}
@@ -1187,9 +1246,12 @@ export const PublicExam: React.FC<PublicExamProps> = ({ examId, theme, toggleThe
                          <div className="mt-3">
                             {attachments[q.id] ? (
                                 <div className="relative rounded-xl overflow-hidden border border-gray-200 dark:border-white/10 group/img">
-                                    <img src={`data:image/png;base64,${attachments[q.id].split(',').pop()}`} alt="Uploaded" className="w-full h-auto max-h-64 object-contain bg-gray-50 dark:bg-black" />
+                                    <img src={attachments[q.id].startsWith('blob:') ? attachments[q.id] : `data:image/png;base64,${attachments[q.id].split(',').pop()}`} alt="Uploaded" className="w-full h-auto max-h-64 object-contain bg-gray-50 dark:bg-black" />
                                     <button 
                                         onClick={() => {
+                                            if (attachments[q.id] && attachments[q.id].startsWith('blob:')) {
+                                                URL.revokeObjectURL(attachments[q.id]);
+                                            }
                                             setAttachments(prev => { const n = {...prev}; delete n[q.id]; return n; });
                                             setAttachmentFiles(prev => { const n = {...prev}; delete n[q.id]; return n; });
                                         }}
@@ -1225,12 +1287,11 @@ export const PublicExam: React.FC<PublicExamProps> = ({ examId, theme, toggleThe
                                     </div>
                                  </div>
                             )}
-                            <textarea 
-                                 placeholder="অথবা টেক্সট লিখুন..."
-                                 value={answers[q.id] || ''}
-                                 onChange={e => handleAnswerChange(q.id, e.target.value)}
-                                 className="w-full mt-3 p-3 rounded-xl bg-gray-50 dark:bg-white/5 border border-transparent focus:border-primary/20 outline-none text-sm text-[#1D1D1F] dark:text-white resize-y min-h-[80px]"
-                             ></textarea>
+                            <WrittenAnswerInput 
+                                 questionId={q.id}
+                                 initialValue={answers[q.id] || ''}
+                                 onChange={handleAnswerChange}
+                             />
                          </div>
                      )}
                  </div>

@@ -21,8 +21,13 @@ class ErrorBoundary extends React.Component<{children: React.ReactNode}, {hasErr
                              (error?.message && error.message.includes('dynamically imported module'));
     
     if (isChunkLoadError) {
-      // Force a hard reload to get the latest assets
-      window.location.reload();
+      if (!sessionStorage.getItem('chunk_reload_attempted')) {
+        sessionStorage.setItem('chunk_reload_attempted', 'true');
+        // Force a hard reload to get the latest assets
+        window.location.reload();
+      } else {
+        console.error('Already attempted to reload for chunk error. Stopping to prevent infinite loop.');
+      }
     }
   }
 
