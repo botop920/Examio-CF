@@ -1,5 +1,5 @@
 import React, { useState, useEffect, Suspense } from "react";
-import { supabase } from "./lib/supabase";
+import { supabase, formatError } from "./lib/supabase";
 import { Header } from "./components/Header";
 import { Hero } from "./components/Hero";
 import { Problems } from "./components/Problems";
@@ -44,6 +44,7 @@ function App() {
   const [publicTeacherId, setPublicTeacherId] = useState<string | null>(null);
   const [publicBatchToken, setPublicBatchToken] = useState<string | null>(null);
   const [isLeaderboard, setIsLeaderboard] = useState(false);
+  const [isDoubtOnly, setIsDoubtOnly] = useState(false);
 
   // PWA State
   const [deferredPrompt, setDeferredPrompt] = useState<any>(null);
@@ -70,11 +71,13 @@ function App() {
     const teacherId = params.get("teacher_id");
     const batchToken = params.get("batch_token");
     const leaderboardParam = params.get("leaderboard") === "true";
+    const doubtParam = params.get("doubt") === "true";
 
     // Route: Single Exam
     if (examId) {
       setPublicExamId(examId);
       setIsLeaderboard(leaderboardParam);
+      setIsDoubtOnly(doubtParam);
       setCurrentPage("public_exam");
       setLoading(false);
       return;
@@ -161,7 +164,7 @@ function App() {
             .single();
 
           if (error) {
-            console.warn("Profile fetch error (ignoring):", error);
+            console.warn("Profile fetch error (ignoring):", formatError(error));
             // If profile doesn't exist or error, assume valid user and go to dashboard
             setCurrentPage("dashboard");
           } else if (profile?.is_banned) {
@@ -316,6 +319,7 @@ function App() {
           theme={theme}
           toggleTheme={toggleTheme}
           isLeaderboard={isLeaderboard}
+          isDoubtOnly={isDoubtOnly}
         />
       </>
     );

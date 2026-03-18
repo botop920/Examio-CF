@@ -157,7 +157,7 @@ export const ShareModal: React.FC<ShareModalProps> = ({ exam, onClose }) => {
             <div className="animate-in fade-in slide-in-from-bottom-2 duration-300">
                  
                  {/* Result Visibility Toggle */}
-                 <div className="mb-6 bg-gray-50 dark:bg-white/5 p-4 rounded-2xl border border-gray-200 dark:border-white/10 flex items-center justify-between">
+                 <div className="mb-3 bg-gray-50 dark:bg-white/5 p-4 rounded-2xl border border-gray-200 dark:border-white/10 flex items-center justify-between">
                      <div className="flex items-center gap-3">
                          <div className={`p-2 rounded-full ${showResultsInstant ? 'bg-green-100 text-green-600' : 'bg-gray-200 text-gray-500'}`}>
                              {showResultsInstant ? <Eye size={18} /> : <EyeOff size={18} />}

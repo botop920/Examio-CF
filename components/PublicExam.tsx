@@ -3,8 +3,9 @@ import React, { useState, useEffect, useRef, useCallback, memo } from 'react';
 import { supabase } from '../lib/supabase';
 import { SecureStorage, obfuscateData, deobfuscateData } from '../lib/security';
 import { GoogleGenAI } from "@google/genai";
-import { Clock, CheckCircle2, User, Hash, Moon, Sun, Loader2, Lock, RefreshCw, ChevronRight, AlertCircle, Upload, Bot, Check, X, Trophy, Medal, Crown, TrendingUp, Home, BookOpenCheck, RotateCcw, AlertTriangle, LogOut, AlertOctagon, Ban, MinusCircle, Download, Send, Bell, Megaphone } from 'lucide-react';
+import { Clock, CheckCircle2, User, Hash, Moon, Sun, Loader2, Lock, RefreshCw, ChevronRight, AlertCircle, Upload, Bot, Check, X, Trophy, Medal, Crown, TrendingUp, Home, BookOpenCheck, RotateCcw, AlertTriangle, LogOut, AlertOctagon, Ban, MinusCircle, Download, Send, Bell, Megaphone, Camera } from 'lucide-react';
 import { LatexText } from './LatexText';
+import { DoubtView } from './DoubtView';
 import toast from 'react-hot-toast';
 import imageCompression from 'browser-image-compression';
 import { jsPDF } from "jspdf";
@@ -75,9 +76,10 @@ interface PublicExamProps {
   theme: string;
   toggleTheme: () => void;
   isLeaderboard?: boolean;
+  isDoubtOnly?: boolean;
 }
 
-export const PublicExam: React.FC<PublicExamProps> = ({ examId, theme, toggleTheme, isLeaderboard = false }) => {
+export const PublicExam: React.FC<PublicExamProps> = ({ examId, theme, toggleTheme, isLeaderboard = false, isDoubtOnly = false }) => {
   const [exam, setExam] = useState<any>(null);
   const [questions, setQuestions] = useState<any[]>([]);
   
@@ -117,6 +119,7 @@ export const PublicExam: React.FC<PublicExamProps> = ({ examId, theme, toggleThe
 
   // Ref for auto-scrolling results
   const resultScrollRef = useRef<HTMLDivElement>(null);
+  const isUploadingImageRef = useRef(false);
 
   useEffect(() => {
       if (exam?.created_by) {
@@ -166,6 +169,7 @@ export const PublicExam: React.FC<PublicExamProps> = ({ examId, theme, toggleThe
 
       const handleVisibilityChange = () => {
           if (document.hidden) {
+              if (isUploadingImageRef.current) return;
               setWarningCount(prev => {
                   const newCount = prev + 1;
                   if (newCount >= 3) {
@@ -184,6 +188,16 @@ export const PublicExam: React.FC<PublicExamProps> = ({ examId, theme, toggleThe
                   }
                   return newCount;
               });
+          } else {
+              if (isUploadingImageRef.current) {
+                  setTimeout(() => { isUploadingImageRef.current = false; }, 1000);
+              }
+          }
+      };
+
+      const handleFocus = () => {
+          if (isUploadingImageRef.current) {
+              setTimeout(() => { isUploadingImageRef.current = false; }, 1000);
           }
       };
 
@@ -193,10 +207,12 @@ export const PublicExam: React.FC<PublicExamProps> = ({ examId, theme, toggleThe
       };
 
       document.addEventListener('visibilitychange', handleVisibilityChange);
+      window.addEventListener('focus', handleFocus);
       document.addEventListener('contextmenu', handleContextMenu);
 
       return () => {
           document.removeEventListener('visibilitychange', handleVisibilityChange);
+          window.removeEventListener('focus', handleFocus);
           document.removeEventListener('contextmenu', handleContextMenu);
       };
   }, [stage]);
@@ -280,8 +296,9 @@ export const PublicExam: React.FC<PublicExamProps> = ({ examId, theme, toggleThe
 
     const handleVisibilityChange = () => {
       if (document.hidden) {
+        if (isUploadingImageRef.current) return;
         setTabSwitchCount(prev => prev + 1);
-        toast.error('সতর্কতা: আপনি এক্সাম ট্যাব থেকে বের হয়েছেন!', { icon: '⚠️' });
+        // We don't need to show a second toast here since the first handler already shows one
       }
     };
     
@@ -331,6 +348,10 @@ export const PublicExam: React.FC<PublicExamProps> = ({ examId, theme, toggleThe
   };
 
   const checkExamStatus = async (silent = false) => {
+    if (isDoubtOnly) {
+      if (!silent) setLoading(false);
+      return;
+    }
     if (!silent) setLoading(true);
     setError(null);
     try {
@@ -609,7 +630,10 @@ export const PublicExam: React.FC<PublicExamProps> = ({ examId, theme, toggleThe
   };
 
   const handleImageUpload = async (questionId: string, file: File) => {
-      if (!file) return;
+      if (!file) {
+          isUploadingImageRef.current = false;
+          return;
+      }
       const options = { maxSizeMB: 0.4, maxWidthOrHeight: 1920, useWebWorker: true };
       try {
           const compressedFile = await imageCompression(file, options);
@@ -618,9 +642,13 @@ export const PublicExam: React.FC<PublicExamProps> = ({ examId, theme, toggleThe
           reader.onloadend = async () => {
               const base64String = reader.result as string;
               setAttachments(prev => ({ ...prev, [questionId]: base64String }));
+              isUploadingImageRef.current = false;
           };
           reader.readAsDataURL(compressedFile);
-      } catch (error) { toast.error("Image processing failed."); }
+      } catch (error) { 
+          toast.error("Image processing failed."); 
+          isUploadingImageRef.current = false;
+      }
   };
 
   // ----------------------------------------------------
@@ -826,6 +854,16 @@ export const PublicExam: React.FC<PublicExamProps> = ({ examId, theme, toggleThe
                   <h2 className="text-2xl font-bold text-[#1D1D1F] dark:text-white mb-2">সমস্যা হয়েছে</h2>
                   <p className="text-gray-500 text-sm mb-6">{error}</p>
                   <button onClick={() => window.location.reload()} className="w-full py-3 bg-primary text-white rounded-xl font-bold text-sm hover:opacity-90 transition-opacity">রিফ্রেশ করুন</button>
+              </div>
+          </div>
+      );
+  }
+
+  if (isDoubtOnly) {
+      return (
+          <div className="fixed inset-0 bg-[#F8F9FA] dark:bg-black flex flex-col z-[100]">
+              <div className="flex-1 w-full h-full">
+                  <DoubtView onBack={handleHomeClick} />
               </div>
           </div>
       );
@@ -1161,15 +1199,30 @@ export const PublicExam: React.FC<PublicExamProps> = ({ examId, theme, toggleThe
                                     </button>
                                 </div>
                             ) : (
-                                 <div className="border-2 border-dashed border-gray-200 dark:border-white/10 rounded-xl p-6 flex flex-col items-center justify-center bg-gray-50 dark:bg-white/5 hover:bg-gray-100 dark:hover:bg-white/10 transition-colors cursor-pointer relative">
-                                    <Upload size={24} className="text-gray-400 mb-2" />
-                                    <span className="text-xs font-bold text-gray-500 dark:text-gray-400">Click to upload image</span>
-                                    <input 
-                                        type="file" 
-                                        accept="image/*"
-                                        onChange={(e) => e.target.files?.[0] && handleImageUpload(q.id, e.target.files[0])}
-                                        className="absolute inset-0 opacity-0 cursor-pointer" 
-                                    />
+                                 <div className="border-2 border-dashed border-gray-200 dark:border-white/10 rounded-xl p-4 flex flex-col sm:flex-row gap-4 items-center justify-center bg-gray-50 dark:bg-white/5 transition-colors">
+                                    <div className="relative flex flex-col items-center justify-center p-4 bg-white dark:bg-white/5 rounded-lg border border-gray-200 dark:border-white/10 hover:bg-gray-50 dark:hover:bg-white/10 cursor-pointer flex-1 w-full">
+                                        <Upload size={24} className="text-gray-400 mb-2" />
+                                        <span className="text-xs font-bold text-gray-500 dark:text-gray-400 text-center">Upload from Gallery</span>
+                                        <input 
+                                            type="file" 
+                                            accept="image/*, image/heic, image/heif"
+                                            onClick={() => { isUploadingImageRef.current = true; }}
+                                            onChange={(e) => e.target.files?.[0] && handleImageUpload(q.id, e.target.files[0])}
+                                            className="absolute inset-0 opacity-0 cursor-pointer" 
+                                        />
+                                    </div>
+                                    <div className="relative flex flex-col items-center justify-center p-4 bg-white dark:bg-white/5 rounded-lg border border-gray-200 dark:border-white/10 hover:bg-gray-50 dark:hover:bg-white/10 cursor-pointer flex-1 w-full">
+                                        <Camera size={24} className="text-gray-400 mb-2" />
+                                        <span className="text-xs font-bold text-gray-500 dark:text-gray-400 text-center">Take Photo</span>
+                                        <input 
+                                            type="file" 
+                                            accept="image/*, image/heic, image/heif"
+                                            capture="environment"
+                                            onClick={() => { isUploadingImageRef.current = true; }}
+                                            onChange={(e) => e.target.files?.[0] && handleImageUpload(q.id, e.target.files[0])}
+                                            className="absolute inset-0 opacity-0 cursor-pointer" 
+                                        />
+                                    </div>
                                  </div>
                             )}
                             <textarea 

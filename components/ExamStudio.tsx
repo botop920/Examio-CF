@@ -1,6 +1,6 @@
 
 import React, { useState, useEffect, useMemo, useRef, useCallback } from 'react';
-import { supabase } from '../lib/supabase';
+import { supabase, formatError } from '../lib/supabase';
 import { GoogleGenAI } from "@google/genai";
 import { Sparkles, Upload, Check, Loader2, Save, Trash2, Library, Search, CheckSquare, Square, ArrowLeft, Type, Edit, X, Award, Filter, ChevronDown, Layers, Hash, ArrowRight, SlidersHorizontal, AlertTriangle, Bot, FileText, Wand2, StopCircle, Minus, Maximize2, Play, Pause, Plus, Image as ImageIcon } from 'lucide-react';
 import { LatexText } from './LatexText';
@@ -1029,7 +1029,7 @@ export const ExamStudio: React.FC<ExamStudioProps> = ({ onExamCreated }) => {
           onExamCreated();
       } catch (error: any) {
           console.error("Save failed:", error);
-          toast.error('Error saving exam: ' + (error.message || error || 'Unknown error'));
+          toast.error('Error saving exam: ' + formatError(error));
       } finally {
           setLoading(false);
       }

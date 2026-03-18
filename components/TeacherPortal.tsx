@@ -51,8 +51,10 @@ import {
   Grid3X3,
   FileText,
   XCircle,
+  Bot,
 } from "lucide-react";
 import { LatexText } from "./LatexText";
+import { DoubtView } from "./DoubtView";
 import toast from "react-hot-toast";
 
 interface TeacherPortalProps {
@@ -341,7 +343,7 @@ export const TeacherPortal: React.FC<TeacherPortalProps> = ({
 
   // Mobile App Navigation State
   const [activeView, setActiveView] = useState<
-    "home" | "analytics" | "mistakes" | "profile" | "leaderboard" | "upcoming" | "past"
+    "home" | "analytics" | "mistakes" | "profile" | "leaderboard" | "upcoming" | "past" | "doubt"
   >("home");
   const [now, setNow] = useState(new Date());
 
@@ -852,6 +854,20 @@ export const TeacherPortal: React.FC<TeacherPortalProps> = ({
         </span>
       </div>
       <div
+        onClick={() => setActiveView("doubt")}
+        className={`flex flex-col items-center gap-1 cursor-pointer transition-opacity ${activeView === "doubt" ? "opacity-100" : "opacity-40 hover:opacity-100"}`}
+      >
+        <div className="relative">
+          {activeView === "doubt" && (
+            <div className="absolute -top-2 left-1/2 -translate-x-1/2 w-1 h-1 bg-gray-900 dark:bg-white rounded-full"></div>
+          )}
+          <Bot className="w-6 h-6 text-gray-900 dark:text-white" />
+        </div>
+        <span className="text-[10px] font-bold text-gray-900 dark:text-white">
+          ডাউট
+        </span>
+      </div>
+      <div
         onClick={() => setActiveView("profile")}
         className={`flex flex-col items-center gap-1 cursor-pointer transition-opacity ${activeView === "profile" ? "opacity-100" : "opacity-40 hover:opacity-100"}`}
       >
@@ -867,6 +883,16 @@ export const TeacherPortal: React.FC<TeacherPortalProps> = ({
       </div>
     </nav>
   );
+
+  if (activeView === "doubt") {
+    return (
+      <div className="fixed inset-0 bg-[#F8F9FA] dark:bg-black z-[100] flex flex-col">
+        <div className="flex-1 w-full h-full">
+          <DoubtView onBack={() => setActiveView('home')} />
+        </div>
+      </div>
+    );
+  }
 
   return (
     <div className="min-h-screen bg-[#F8F9FA] dark:bg-black font-sans text-[#1D1D1F] dark:text-white pb-24 transition-colors">
@@ -973,37 +999,45 @@ export const TeacherPortal: React.FC<TeacherPortalProps> = ({
             )}
 
             {/* Quick Links */}
-            <div className="grid grid-cols-4 gap-4 mt-6">
+            <div className="grid grid-cols-5 gap-2 mt-6">
               <div className="flex flex-col items-center gap-2 cursor-pointer group">
-                <div className="w-14 h-14 rounded-2xl bg-[#EF4444] text-white flex items-center justify-center shadow-md shadow-red-200 dark:shadow-none group-active:scale-95 transition-transform">
-                  <Clock className="w-6 h-6" />
+                <div className="w-12 h-12 rounded-2xl bg-[#EF4444] text-white flex items-center justify-center shadow-md shadow-red-200 dark:shadow-none group-active:scale-95 transition-transform">
+                  <Clock className="w-5 h-5" />
                 </div>
-                <span className="text-[11px] font-semibold text-gray-700 dark:text-gray-300 text-center">
-                  লাইভ এক্সাম
+                <span className="text-[10px] font-semibold text-gray-700 dark:text-gray-300 text-center">
+                  লাইভ
                 </span>
               </div>
               <div onClick={() => setActiveView('upcoming')} className="flex flex-col items-center gap-2 cursor-pointer group">
-                <div className="w-14 h-14 rounded-2xl bg-[#3B82F6] text-white flex items-center justify-center shadow-md shadow-blue-200 dark:shadow-none group-active:scale-95 transition-transform">
-                  <Calendar className="w-6 h-6" />
+                <div className="w-12 h-12 rounded-2xl bg-[#3B82F6] text-white flex items-center justify-center shadow-md shadow-blue-200 dark:shadow-none group-active:scale-95 transition-transform">
+                  <Calendar className="w-5 h-5" />
                 </div>
-                <span className="text-[11px] font-semibold text-gray-700 dark:text-gray-300 text-center">
+                <span className="text-[10px] font-semibold text-gray-700 dark:text-gray-300 text-center">
                   রুটিন
                 </span>
               </div>
               <div onClick={() => setActiveView('past')} className="flex flex-col items-center gap-2 cursor-pointer group">
-                <div className="w-14 h-14 rounded-2xl bg-[#F97316] text-white flex items-center justify-center shadow-md shadow-orange-200 dark:shadow-none group-active:scale-95 transition-transform">
-                  <Clock className="w-6 h-6" />
+                <div className="w-12 h-12 rounded-2xl bg-[#F97316] text-white flex items-center justify-center shadow-md shadow-orange-200 dark:shadow-none group-active:scale-95 transition-transform">
+                  <Clock className="w-5 h-5" />
                 </div>
-                <span className="text-[11px] font-semibold text-gray-700 dark:text-gray-300 text-center">
-                  অতীত এক্সাম
+                <span className="text-[10px] font-semibold text-gray-700 dark:text-gray-300 text-center">
+                  অতীত
                 </span>
               </div>
               <div onClick={() => setActiveView('leaderboard')} className="flex flex-col items-center gap-2 cursor-pointer group">
-                <div className="w-14 h-14 rounded-2xl bg-[#14B8A6] text-white flex items-center justify-center shadow-md shadow-teal-200 dark:shadow-none group-active:scale-95 transition-transform">
-                  <Trophy className="w-6 h-6" />
+                <div className="w-12 h-12 rounded-2xl bg-[#14B8A6] text-white flex items-center justify-center shadow-md shadow-teal-200 dark:shadow-none group-active:scale-95 transition-transform">
+                  <Trophy className="w-5 h-5" />
                 </div>
-                <span className="text-[11px] font-semibold text-gray-700 dark:text-gray-300 text-center">
-                  লিডারবোর্ড
+                <span className="text-[10px] font-semibold text-gray-700 dark:text-gray-300 text-center">
+                  র‍্যাংক
+                </span>
+              </div>
+              <div onClick={() => setActiveView('doubt')} className="flex flex-col items-center gap-2 cursor-pointer group">
+                <div className="w-12 h-12 rounded-2xl bg-indigo-600 text-white flex items-center justify-center shadow-md shadow-indigo-200 dark:shadow-none group-active:scale-95 transition-transform">
+                  <Bot className="w-5 h-5" />
+                </div>
+                <span className="text-[10px] font-semibold text-gray-700 dark:text-gray-300 text-center">
+                  ডাউট
                 </span>
               </div>
             </div>

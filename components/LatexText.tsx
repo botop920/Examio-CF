@@ -49,10 +49,9 @@ export const LatexText = React.memo(({ text }: LatexTextProps) => {
             const html = katex.renderToString(math, {
               throwOnError: false,
               displayMode: displayMode,
-              output: 'mathml', // Better for performance/accessibility and security
             });
             
-            return <span key={index} dangerouslySetInnerHTML={{ __html: html }} className={`${displayMode ? 'block my-2 text-center' : 'inline-block mx-0.5'}`} />;
+            return <span key={index} dangerouslySetInnerHTML={{ __html: html }} className={displayMode ? 'block my-2 overflow-x-auto' : 'inline-block'} />;
           } catch (e) {
             // Fallback to raw text if render fails
             return <span key={index} className="text-red-500 text-xs">{part}</span>;

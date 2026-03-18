@@ -227,6 +227,17 @@ export const TeacherProfile: React.FC<{ session: any }> = ({ session }) => {
                                 <button onClick={() => copyToClipboard(globalPortalUrl)} className="p-2 hover:bg-white hover:shadow-sm rounded-lg transition-all"><Copy size={18} className="text-gray-500" /></button>
                             </div>
                         </div>
+
+                        <div className="p-4 rounded-xl bg-indigo-50/50 dark:bg-indigo-900/10 border border-indigo-100 dark:border-indigo-900/20">
+                            <label className="text-xs font-bold text-indigo-600 dark:text-indigo-400 uppercase tracking-widest mb-3 block flex justify-between">
+                                <span>Doubt Solver Link (Global)</span>
+                                <a href={`${globalPortalUrl}&doubt=true`} target="_blank" rel="noreferrer" className="flex items-center gap-1 text-primary hover:underline lowercase"><ExternalLink size={12}/> preview</a>
+                            </label>
+                            <div className="flex gap-2">
+                                <input readOnly value={`${globalPortalUrl}&doubt=true`} className="flex-1 bg-white dark:bg-black/30 border border-gray-200 dark:border-white/10 rounded-lg px-3 py-2 text-sm text-gray-600 dark:text-gray-300 outline-none" />
+                                <button onClick={() => copyToClipboard(`${globalPortalUrl}&doubt=true`)} className="p-2 hover:bg-white hover:shadow-sm rounded-lg transition-all"><Copy size={18} className="text-gray-500" /></button>
+                            </div>
+                        </div>
                         
                         <p className="text-sm text-gray-500 italic">
                             * নির্দিষ্ট ব্যাচের জন্য আলাদা লিংক পেতে ডানপাশের ব্যাচ লিস্ট থেকে 'Code' আইকনে ক্লিক করুন।
@@ -457,6 +468,14 @@ export const TeacherProfile: React.FC<{ session: any }> = ({ session }) => {
                             <div className="flex gap-2">
                                 <input readOnly value={getBatchUrl(selectedBatchForEmbed.public_token)} className="flex-1 bg-white dark:bg-black/30 border border-gray-200 dark:border-white/10 rounded-lg px-3 py-2 text-xs text-gray-600 dark:text-gray-300 outline-none" />
                                 <button onClick={() => copyToClipboard(getBatchUrl(selectedBatchForEmbed.public_token))} className="p-2 bg-white dark:bg-white/10 border border-gray-200 dark:border-white/10 rounded-lg hover:text-primary"><Copy size={16} /></button>
+                            </div>
+                       </div>
+
+                       <div className="p-3 bg-indigo-50/50 dark:bg-indigo-900/10 rounded-xl border border-indigo-100 dark:border-indigo-900/20">
+                            <label className="text-xs font-bold text-indigo-600 dark:text-indigo-400 uppercase tracking-widest mb-2 block">Doubt Solver Link</label>
+                            <div className="flex gap-2">
+                                <input readOnly value={`${getBatchUrl(selectedBatchForEmbed.public_token)}&doubt=true`} className="flex-1 bg-white dark:bg-black/30 border border-gray-200 dark:border-white/10 rounded-lg px-3 py-2 text-xs text-gray-600 dark:text-gray-300 outline-none" />
+                                <button onClick={() => copyToClipboard(`${getBatchUrl(selectedBatchForEmbed.public_token)}&doubt=true`)} className="p-2 bg-white dark:bg-white/10 border border-gray-200 dark:border-white/10 rounded-lg hover:text-primary"><Copy size={16} /></button>
                             </div>
                        </div>
 
