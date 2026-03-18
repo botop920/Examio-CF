@@ -10,6 +10,11 @@
     <meta name="description" content="A comprehensive digital exam management platform for educational institutions.">
     <meta name="theme-color" content="#0071E3">
     
+    <!-- Cache Control (Prevent stale index.html) -->
+    <meta http-equiv="Cache-Control" content="no-cache, no-store, must-revalidate">
+    <meta http-equiv="Pragma" content="no-cache">
+    <meta http-equiv="Expires" content="0">
+    
     <!-- iOS Specific PWA Settings -->
     <meta name="apple-mobile-web-app-capable" content="yes">
     <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
@@ -138,6 +143,47 @@
     <div id="root"></div>
     <script type="module" src="/index.tsx"></script>
     
+    <!-- Fallback for Chunk Load Errors / Stale Cache -->
+    <script>
+      // Listen for script load errors (e.g., old cached index.html requesting a deleted JS chunk)
+      window.addEventListener('error', function(e) {
+        const target = e.target || e.srcElement;
+        const isScript = target && target.tagName === 'SCRIPT';
+        const isLink = target && target.tagName === 'LINK';
+        
+        if (isScript || isLink) {
+          const url = target.src || target.href || '';
+          // Only trigger reload for local assets (our own JS/CSS chunks)
+          if (url && (url.startsWith(window.location.origin) || url.startsWith('/'))) {
+            console.warn('Local asset failed to load. Clearing cache and reloading...', url);
+            
+            // Prevent infinite reload loops by setting a flag in sessionStorage
+            if (!sessionStorage.getItem('asset_reload_attempted')) {
+              sessionStorage.setItem('asset_reload_attempted', 'true');
+              
+              if ('serviceWorker' in navigator) {
+                navigator.serviceWorker.getRegistrations().then(function(registrations) {
+                  for(let registration of registrations) {
+                    registration.unregister();
+                  }
+                });
+              }
+              if (window.caches) {
+                caches.keys().then(function(names) {
+                  for (let name of names) caches.delete(name);
+                });
+              }
+              
+              // Hard reload
+              window.location.reload(true);
+            } else {
+              console.error('Already attempted to reload. Stopping to prevent infinite loop.');
+            }
+          }
+        }
+      }, true); // Use capture phase to catch resource errors
+    </script>
+
     <!-- Service Worker Registration -->
     <script>
       if ('serviceWorker' in navigator) {
