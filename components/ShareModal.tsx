@@ -1,7 +1,7 @@
 
 import React, { useState, useEffect } from 'react';
 import { QRCodeSVG } from 'qrcode.react';
-import { X, Copy, Check, Share2, ExternalLink, Download, Image as ImageIcon, Code, Trophy, Link as LinkIcon, Eye, EyeOff, Loader2 } from 'lucide-react';
+import { X, Copy, Check, Share2, ExternalLink, Download, Image as ImageIcon, Code, Trophy, Link as LinkIcon, Eye, EyeOff, Loader2, Camera } from 'lucide-react';
 import toast from 'react-hot-toast';
 import { supabase } from '../lib/supabase';
 
@@ -13,13 +13,16 @@ interface ShareModalProps {
 export const ShareModal: React.FC<ShareModalProps> = ({ exam, onClose }) => {
   const [activeTab, setActiveTab] = useState<'link' | 'leaderboard'>('link');
   const [showResultsInstant, setShowResultsInstant] = useState(true);
+  const [allowPhotocard, setAllowPhotocard] = useState(false);
   const [isUpdating, setIsUpdating] = useState(false);
+  const [isUpdatingPhotocard, setIsUpdatingPhotocard] = useState(false);
 
   // Initialize state from exam prop
   useEffect(() => {
       if (exam) {
           // Default to true if the column doesn't exist or is null
           setShowResultsInstant(exam.show_results_instant !== false);
+          setAllowPhotocard(exam.allow_photocard === true);
       }
   }, [exam]);
 
@@ -53,6 +56,28 @@ export const ShareModal: React.FC<ShareModalProps> = ({ exam, onClose }) => {
           toast.error('আপডেট করতে সমস্যা হয়েছে');
       } finally {
           setIsUpdating(false);
+      }
+  };
+
+  const togglePhotocard = async () => {
+      setIsUpdatingPhotocard(true);
+      const newValue = !allowPhotocard;
+      
+      try {
+          const { error } = await supabase
+            .from('exams')
+            .update({ allow_photocard: newValue })
+            .eq('id', exam.id);
+
+          if (error) throw error;
+          
+          setAllowPhotocard(newValue);
+          toast.success(newValue ? 'ফটোকার্ড ডাউনলোড চালু করা হয়েছে' : 'ফটোকার্ড ডাউনলোড বন্ধ করা হয়েছে');
+      } catch (error) {
+          console.error(error);
+          toast.error('আপডেট করতে সমস্যা হয়েছে');
+      } finally {
+          setIsUpdatingPhotocard(false);
       }
   };
 
@@ -174,6 +199,28 @@ export const ShareModal: React.FC<ShareModalProps> = ({ exam, onClose }) => {
                      >
                          <div className={`w-5 h-5 bg-white rounded-full shadow-sm transition-transform ${showResultsInstant ? 'translate-x-5' : 'translate-x-0'}`}>
                              {isUpdating && <Loader2 className="w-full h-full p-1 animate-spin text-primary" />}
+                         </div>
+                     </button>
+                 </div>
+
+                 {/* Photocard Toggle */}
+                 <div className="mb-3 bg-gray-50 dark:bg-white/5 p-4 rounded-2xl border border-gray-200 dark:border-white/10 flex items-center justify-between">
+                     <div className="flex items-center gap-3">
+                         <div className={`p-2 rounded-full ${allowPhotocard ? 'bg-blue-100 text-blue-600' : 'bg-gray-200 text-gray-500'}`}>
+                             <Camera size={18} />
+                         </div>
+                         <div>
+                             <p className="text-sm font-bold text-[#1D1D1F] dark:text-white">Personalized Photocard</p>
+                             <p className="text-[10px] text-gray-500">Students can download a result card</p>
+                         </div>
+                     </div>
+                     <button 
+                        onClick={togglePhotocard}
+                        disabled={isUpdatingPhotocard}
+                        className={`w-12 h-7 rounded-full p-1 transition-colors relative ${allowPhotocard ? 'bg-primary' : 'bg-gray-300 dark:bg-gray-600'}`}
+                     >
+                         <div className={`w-5 h-5 bg-white rounded-full shadow-sm transition-transform ${allowPhotocard ? 'translate-x-5' : 'translate-x-0'}`}>
+                             {isUpdatingPhotocard && <Loader2 className="w-full h-full p-1 animate-spin text-primary" />}
                          </div>
                      </button>
                  </div>

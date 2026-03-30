@@ -51,7 +51,7 @@ export default async function handler(req: Request, env: any) {
     // 2. Fetch from Database
     const { data, error } = await supabase
       .from('student_submissions')
-      .select('student_name, obtained_marks, time_taken')
+      .select('student_name, student_roll, obtained_marks, time_taken')
       .eq('exam_id', examId)
       .order('obtained_marks', { ascending: false })
       .order('time_taken', { ascending: true }) // Tie-breaker: less time is better

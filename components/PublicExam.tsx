@@ -6,6 +6,7 @@ import { GoogleGenAI } from "@google/genai";
 import { Clock, CheckCircle2, User, Hash, Moon, Sun, Loader2, Lock, RefreshCw, ChevronRight, AlertCircle, Upload, Bot, Check, X, Trophy, Medal, Crown, TrendingUp, Home, BookOpenCheck, RotateCcw, AlertTriangle, LogOut, AlertOctagon, Ban, MinusCircle, Download, Send, Bell, Megaphone, Camera } from 'lucide-react';
 import { LatexText } from './LatexText';
 import { DoubtView } from './DoubtView';
+import { Photocard } from './Photocard';
 import toast from 'react-hot-toast';
 import imageCompression from 'browser-image-compression';
 import { jsPDF } from "jspdf";
@@ -173,6 +174,8 @@ export const PublicExam: React.FC<PublicExamProps> = ({ examId, theme, toggleThe
   const [initialTimeLeft, setInitialTimeLeft] = useState(0);
   const timeLeftRef = useRef(0);
   const [score, setScore] = useState<number | null>(null);
+  const [timeTaken, setTimeTaken] = useState<number | null>(null);
+  const [studentRank, setStudentRank] = useState<number | null>(null);
   const [warningCount, setWarningCount] = useState(0);
 
   // Result Filtering State
@@ -373,6 +376,28 @@ export const PublicExam: React.FC<PublicExamProps> = ({ examId, theme, toggleThe
       }
   }, [isLeaderboard, exam]);
 
+  useEffect(() => {
+      if (stage === 'submitted' && examId && studentRoll) {
+          const fetchRank = async () => {
+              try {
+                  const response = await fetch(`/api/get-leaderboard?exam_id=${examId}`);
+                  if (response.ok) {
+                      const data = await response.json();
+                      if (Array.isArray(data)) {
+                          const index = data.findIndex((entry: any) => entry.student_roll === studentRoll);
+                          if (index !== -1) {
+                              setStudentRank(index + 1);
+                          }
+                      }
+                  }
+              } catch (err) {
+                  console.error("Failed to fetch rank", err);
+              }
+          };
+          fetchRank();
+      }
+  }, [stage, examId, studentRoll]);
+
   const fetchLeaderboard = async () => {
       setLoading(true);
       try {
@@ -555,6 +580,7 @@ export const PublicExam: React.FC<PublicExamProps> = ({ examId, theme, toggleThe
                 if (localData.status === 'submitted') {
                     toast.success('ফলাফল তৈরি আছে! (Local Cache)');
                     setScore(localData.score);
+                    if (localData.time_taken) setTimeTaken(localData.time_taken);
                     if (localData.answers) {
                         const restoredAnswers: Record<string, string> = {};
                         localData.answers.forEach((ans: any) => {
@@ -596,6 +622,7 @@ export const PublicExam: React.FC<PublicExamProps> = ({ examId, theme, toggleThe
         if (existing) {
             toast.success('স্বাগতম! আপনার ফলাফল লোড করা হয়েছে।');
             setScore(existing.obtained_marks);
+            if (existing.time_taken) setTimeTaken(existing.time_taken);
             const loadedAnswers: Record<string, string> = {};
             
             if (existing.student_answers) {
@@ -637,9 +664,11 @@ export const PublicExam: React.FC<PublicExamProps> = ({ examId, theme, toggleThe
                     timestamp: r.timestamp || Date.now(),
                     score: r.score,
                     answers: r.answers,
-                    solutions: r.solutions
+                    solutions: r.solutions,
+                    time_taken: r.time_taken
                 }));
 
+                if (r.time_taken) setTimeTaken(r.time_taken);
                 setStage('submitted');
                 setLoading(false);
                 return;
@@ -785,13 +814,16 @@ export const PublicExam: React.FC<PublicExamProps> = ({ examId, theme, toggleThe
 
       // Save complete state to avoid DB calls on refresh
       const localKey = getLocalSubmissionKey(studentRoll);
+      const calculatedTimeTaken = (exam.duration_minutes * 60) - timeLeftRef.current;
       localStorage.setItem(localKey, JSON.stringify({
           status: 'submitted',
           timestamp: Date.now(),
           score: result.score,
           answers: answersArray, 
-          solutions: result.solutions // SAVE SOLUTIONS TO LOCAL STORAGE
+          solutions: result.solutions, // SAVE SOLUTIONS TO LOCAL STORAGE
+          time_taken: calculatedTimeTaken
       }));
+      setTimeTaken(calculatedTimeTaken);
       
       const hasWritten = questions.some(q => q.question_type === 'written');
       if (hasWritten) {
@@ -1106,6 +1138,22 @@ export const PublicExam: React.FC<PublicExamProps> = ({ examId, theme, toggleThe
                           <div className="flex items-center gap-2 px-4 py-2 rounded-full border bg-white dark:bg-[#1C1C1E] border-gray-100 dark:border-white/10 text-gray-500"><MinusCircle size={16} className="text-gray-400" /><span className="text-sm font-bold">Skipped: {skippedCount}</span></div>
                       </div>
                       <button onClick={downloadMistakesPDF} className="mt-6 flex items-center gap-2 px-6 py-3 bg-red-50 dark:bg-red-900/20 text-red-600 dark:text-red-400 rounded-xl font-bold text-sm hover:bg-red-100 dark:hover:bg-red-900/30 transition-all border border-red-100 dark:border-red-900/30 shadow-sm"><Download size={16} /> Download Incorrect Answers PDF</button>
+                      
+                      {exam?.allow_photocard && (
+                        <Photocard 
+                          studentName={studentName || savedIdentity?.name || 'Student'}
+                          studentRoll={studentRoll || savedIdentity?.roll || 'N/A'}
+                          examTitle={exam.title}
+                          score={score || 0}
+                          totalMarks={questions.reduce((a,b) => a + (b.marks||1), 0)}
+                          correctCount={correctCount}
+                          wrongCount={wrongCount}
+                          skippedCount={skippedCount}
+                          avgTimePerQuestion={timeTaken !== null && questions.length > 0 ? `${(timeTaken / questions.length).toFixed(1)}s` : "N/A"}
+                          rank={studentRank || undefined}
+                        />
+                      )}
+
                       {resultFilter !== 'all' && <button onClick={() => setResultFilter('all')} className="mt-4 text-xs font-bold text-primary hover:underline flex items-center gap-1"><RotateCcw size={12} /> View Full Paper</button>}
                   </div>
 
