@@ -3,14 +3,12 @@ import React, { useState, useEffect, useRef, useCallback, memo } from 'react';
 import { supabase } from '../lib/supabase';
 import { SecureStorage, obfuscateData, deobfuscateData } from '../lib/security';
 import { GoogleGenAI } from "@google/genai";
-import { Clock, CheckCircle2, User, Hash, Moon, Sun, Loader2, Lock, RefreshCw, ChevronRight, AlertCircle, Upload, Bot, Check, X, Trophy, Medal, Crown, TrendingUp, Home, BookOpenCheck, RotateCcw, AlertTriangle, LogOut, AlertOctagon, Ban, MinusCircle, Download, Send, Bell, Megaphone, Camera } from 'lucide-react';
+import { Clock, CheckCircle2, User, Hash, Moon, Sun, Loader2, Lock, RefreshCw, ChevronRight, AlertCircle, Upload, Bot, Check, X, Trophy, Medal, Crown, TrendingUp, Home, BookOpenCheck, RotateCcw, AlertTriangle, LogOut, AlertOctagon, Ban, MinusCircle, Download, Send, Bell, Megaphone, Camera, Award } from 'lucide-react';
 import { LatexText } from './LatexText';
 import { DoubtView } from './DoubtView';
 import { Photocard } from './Photocard';
 import toast from 'react-hot-toast';
 import imageCompression from 'browser-image-compression';
-import { jsPDF } from "jspdf";
-import autoTable from "jspdf-autotable";
 
 // Isolated Written Answer Input to prevent full re-renders on every keystroke
 const WrittenAnswerInput = memo(({ questionId, initialValue, onChange }: { questionId: string, initialValue: string, onChange: (id: string, val: string) => void }) => {
@@ -162,7 +160,8 @@ export const PublicExam: React.FC<PublicExamProps> = ({ examId, theme, toggleThe
   // Student Info
   const [studentName, setStudentName] = useState('');
   const [studentRoll, setStudentRoll] = useState('');
-  const [savedIdentity, setSavedIdentity] = useState<{name: string, roll: string} | null>(null);
+  const [studentInstitution, setStudentInstitution] = useState('');
+  const [savedIdentity, setSavedIdentity] = useState<{name: string, roll: string, institution?: string} | null>(null);
   
   // Exam State
   const [answers, setAnswers] = useState<Record<string, string>>({});
@@ -187,6 +186,7 @@ export const PublicExam: React.FC<PublicExamProps> = ({ examId, theme, toggleThe
   // Announcement State
   const [announcements, setAnnouncements] = useState<any[]>([]);
   const [showAnnouncements, setShowAnnouncements] = useState(false);
+  const [showPhotocard, setShowPhotocard] = useState(false);
   const [unreadCount, setUnreadCount] = useState(0);
 
   // Ref for auto-scrolling results
@@ -399,6 +399,7 @@ export const PublicExam: React.FC<PublicExamProps> = ({ examId, theme, toggleThe
   }, [stage, examId, studentRoll]);
 
   const fetchLeaderboard = async () => {
+      if (!examId) return;
       setLoading(true);
       try {
           // Try fetching from Redis-cached API first
@@ -478,6 +479,7 @@ export const PublicExam: React.FC<PublicExamProps> = ({ examId, theme, toggleThe
   };
 
   const fetchQuestionsInternal = async () => {
+      if (!examId) return [];
       const CACHE_KEY = `exam_cache_obf_${examId}`;
       const CACHE_DURATION = 60 * 60 * 1000; // 1 Hour
 
@@ -562,8 +564,13 @@ export const PublicExam: React.FC<PublicExamProps> = ({ examId, theme, toggleThe
   const startExam = async () => {
     if (!studentName.trim() || !studentRoll.trim()) { toast.error('দয়া করে নাম এবং রোল নম্বর লিখুন'); return; }
     
-    if (studentName.length > 50 || studentRoll.length > 20) {
-        toast.error('নাম বা রোল নম্বর অত্যধিক বড়।');
+    if (exam?.require_institution && !studentInstitution.trim()) {
+        toast.error('দয়া করে স্কুল/কলেজের নাম লিখুন');
+        return;
+    }
+
+    if (studentName.length > 50 || studentRoll.length > 20 || studentInstitution.length > 100) {
+        toast.error('নাম, রোল নম্বর বা প্রতিষ্ঠানের নাম অত্যধিক বড়।');
         return;
     }
 
@@ -680,7 +687,7 @@ export const PublicExam: React.FC<PublicExamProps> = ({ examId, theme, toggleThe
     }
 
     if (isEmbedMode()) {
-        SecureStorage.setItem('exam_student_identity', { name: studentName, roll: studentRoll });
+        SecureStorage.setItem('exam_student_identity', { name: studentName, roll: studentRoll, institution: studentInstitution });
         if (exam?.teacher_id) {
             supabase.from('students').upsert({
                 teacher_id: exam.teacher_id,
@@ -859,58 +866,6 @@ export const PublicExam: React.FC<PublicExamProps> = ({ examId, theme, toggleThe
       );
   };
 
-  const downloadMistakesPDF = () => {
-        const mistakes = questions.filter(q => q.question_type === 'mcq' && answers[q.id] && answers[q.id] !== q.correct_answer);
-        
-        if (mistakes.length === 0) {
-            toast.error("কোনো ভুল উত্তর নেই! আপনি সব সঠিক করেছেন।");
-            return;
-        }
-
-        const doc = new jsPDF();
-        
-        doc.setFontSize(18);
-        doc.setTextColor(220, 38, 38);
-        doc.text("Mistakes Report", 14, 20);
-        
-        doc.setFontSize(12);
-        doc.setTextColor(60);
-        doc.text(`Exam: ${exam.title}`, 14, 28);
-        doc.text(`Student: ${studentName || studentRoll}`, 14, 34);
-
-        const tableRows: any[] = [];
-        
-        mistakes.forEach((q, i) => {
-            const cleanQ = q.question_text.replace(/(\$\$|\$|\\\[|\\\]|\\\(|\\\))/g, '');
-            const cleanExpl = q.explanation ? q.explanation.replace(/(\$\$|\$|\\\[|\\\]|\\\(|\\\))/g, '') : 'N/A';
-            
-            tableRows.push([
-                i + 1,
-                cleanQ,
-                answers[q.id],
-                q.correct_answer, 
-                cleanExpl
-            ]);
-        });
-
-        autoTable(doc, {
-            head: [["#", "Question", "Your Answer", "Correct", "Explanation"]],
-            body: tableRows,
-            startY: 40,
-            styles: { fontSize: 10, cellPadding: 3 },
-            headStyles: { fillColor: [220, 38, 38] },
-            columnStyles: {
-                0: { cellWidth: 10 },
-                1: { cellWidth: 50 },
-                2: { cellWidth: 30 },
-                3: { cellWidth: 30 },
-                4: { cellWidth: 'auto' }
-            }
-        });
-
-        doc.save(`Mistakes_${studentRoll.replace(/[^a-z0-9]/gi, '_')}.pdf`);
-        toast.success("Mistakes report downloaded!");
-    };
 
   if (loading && stage === 'initial') return <div className="fixed inset-0 bg-[#F5F5F7] dark:bg-black flex items-center justify-center z-[100]"><Loader2 className="animate-spin text-primary" size={40} /></div>;
   
@@ -1058,7 +1013,7 @@ export const PublicExam: React.FC<PublicExamProps> = ({ examId, theme, toggleThe
         <div className="max-w-md w-full bg-white dark:bg-[#1C1C1E] rounded-[32px] shadow-2xl p-8 border border-gray-100 dark:border-white/5 animate-in zoom-in-95 duration-500">
            <div className="flex justify-between items-center mb-8"><div className="w-12 h-12 bg-black dark:bg-white rounded-2xl flex items-center justify-center text-white dark:text-black shadow-lg"><Hash size={24} /></div><button onClick={toggleTheme} className="p-3 bg-gray-50 dark:bg-white/10 rounded-full dark:text-white hover:bg-gray-100 transition-colors">{theme === 'dark' ? <Sun size={20} /> : <Moon size={20} />}</button></div>
            <h1 className="text-3xl font-bold text-[#1D1D1F] dark:text-white mb-2 tracking-tight">{exam?.title}</h1>
-           {savedIdentity && isEmbedMode() ? <div className="space-y-6 animate-in fade-in"><p className="text-gray-500 font-medium">স্বাগতম ফিরে আসার জন্য!</p><div className="bg-gray-50 dark:bg-white/5 p-4 rounded-2xl border border-gray-100 dark:border-white/10 flex items-center gap-4"><div className="w-12 h-12 bg-primary/10 rounded-full flex items-center justify-center text-primary font-bold text-lg">{savedIdentity.name.charAt(0).toUpperCase()}</div><div><h3 className="font-bold text-[#1D1D1F] dark:text-white text-lg">{savedIdentity.name}</h3><p className="text-sm text-gray-500 font-mono">Roll: {savedIdentity.roll}</p></div></div><button onClick={startExam} disabled={loading} className="group w-full h-14 bg-primary text-white rounded-2xl font-bold text-lg shadow-xl shadow-primary/20 hover:bg-primary-dark hover:scale-[1.02] active:scale-95 transition-all flex items-center justify-center gap-2 disabled:opacity-70 disabled:cursor-not-allowed">{loading ? <Loader2 className="animate-spin" /> : <>Start Exam <ChevronRight size={20} className="group-hover:translate-x-1 transition-transform" /></>}</button><div className="text-center"><button onClick={clearIdentity} className="text-sm font-bold text-gray-400 hover:text-red-500 transition-colors flex items-center justify-center gap-2 mx-auto"><LogOut size={14} /> Not you? Switch Account</button></div></div> : <div className="space-y-5 animate-in fade-in"><p className="text-gray-500 mb-4 font-medium">আপনার তথ্য দিয়ে এক্সাম শুরু করুন</p><div className="space-y-2"><label className="text-xs font-bold text-gray-400 uppercase tracking-widest ml-1">Student Name</label><div className="flex items-center gap-3 bg-gray-50 dark:bg-black/40 px-5 h-14 rounded-2xl border border-transparent focus-within:border-primary focus-within:bg-white dark:focus-within:bg-black focus-within:shadow-lg focus-within:shadow-primary/10 transition-all"><User size={20} className="text-gray-400" /><input type="text" placeholder="আপনার নাম লিখুন" value={studentName} onChange={e => setStudentName(e.target.value)} className="bg-transparent outline-none w-full text-lg font-medium text-[#1D1D1F] dark:text-white placeholder:text-gray-400" /></div></div><div className="space-y-2"><label className="text-xs font-bold text-gray-400 uppercase tracking-widest ml-1">Roll Number</label><div className="flex items-center gap-3 bg-gray-50 dark:bg-black/40 px-5 h-14 rounded-2xl border border-transparent focus-within:border-primary focus-within:bg-white dark:focus-within:bg-black focus-within:shadow-lg focus-within:shadow-primary/10 transition-all"><Hash size={20} className="text-gray-400" /><input type="text" placeholder="রোল নম্বর" value={studentRoll} onChange={e => setStudentRoll(e.target.value)} className="bg-transparent outline-none w-full text-lg font-medium text-[#1D1D1F] dark:text-white placeholder:text-gray-400" /></div></div><div className="pt-4"><button onClick={startExam} disabled={loading} className="group w-full h-14 bg-[#1D1D1F] dark:bg-white text-white dark:text-black rounded-2xl font-bold text-lg shadow-xl shadow-black/10 hover:scale-[1.02] active:scale-95 transition-all flex items-center justify-center gap-2 disabled:opacity-70 disabled:cursor-not-allowed">{loading ? <Loader2 className="animate-spin" /> : <>এক্সাম শুরু করুন <ChevronRight size={20} className="group-hover:translate-x-1 transition-transform" /></>}</button></div></div>}
+           {savedIdentity && isEmbedMode() ? <div className="space-y-6 animate-in fade-in"><p className="text-gray-500 font-medium">স্বাগতম ফিরে আসার জন্য!</p><div className="bg-gray-50 dark:bg-white/5 p-4 rounded-2xl border border-gray-100 dark:border-white/10 flex items-center gap-4"><div className="w-12 h-12 bg-primary/10 rounded-full flex items-center justify-center text-primary font-bold text-lg">{savedIdentity.name.charAt(0).toUpperCase()}</div><div><h3 className="font-bold text-[#1D1D1F] dark:text-white text-lg">{savedIdentity.name}</h3><p className="text-sm text-gray-500 font-mono">Roll: {savedIdentity.roll}</p>{savedIdentity.institution && <p className="text-xs text-gray-400 mt-1">{savedIdentity.institution}</p>}</div></div><button onClick={startExam} disabled={loading} className="group w-full h-14 bg-primary text-white rounded-2xl font-bold text-lg shadow-xl shadow-primary/20 hover:bg-primary-dark hover:scale-[1.02] active:scale-95 transition-all flex items-center justify-center gap-2 disabled:opacity-70 disabled:cursor-not-allowed">{loading ? <Loader2 className="animate-spin" /> : <>Start Exam <ChevronRight size={20} className="group-hover:translate-x-1 transition-transform" /></>}</button><div className="text-center"><button onClick={clearIdentity} className="text-sm font-bold text-gray-400 hover:text-red-500 transition-colors flex items-center justify-center gap-2 mx-auto"><LogOut size={14} /> Not you? Switch Account</button></div></div> : <div className="space-y-5 animate-in fade-in"><p className="text-gray-500 mb-4 font-medium">আপনার তথ্য দিয়ে এক্সাম শুরু করুন</p><div className="space-y-2"><label className="text-xs font-bold text-gray-400 uppercase tracking-widest ml-1">Student Name</label><div className="flex items-center gap-3 bg-gray-50 dark:bg-black/40 px-5 h-14 rounded-2xl border border-transparent focus-within:border-primary focus-within:bg-white dark:focus-within:bg-black focus-within:shadow-lg focus-within:shadow-primary/10 transition-all"><User size={20} className="text-gray-400" /><input type="text" placeholder="আপনার নাম লিখুন" value={studentName} onChange={e => setStudentName(e.target.value)} className="bg-transparent outline-none w-full text-lg font-medium text-[#1D1D1F] dark:text-white placeholder:text-gray-400" /></div></div><div className="space-y-2"><label className="text-xs font-bold text-gray-400 uppercase tracking-widest ml-1">Roll Number</label><div className="flex items-center gap-3 bg-gray-50 dark:bg-black/40 px-5 h-14 rounded-2xl border border-transparent focus-within:border-primary focus-within:bg-white dark:focus-within:bg-black focus-within:shadow-lg focus-within:shadow-primary/10 transition-all"><Hash size={20} className="text-gray-400" /><input type="text" placeholder="রোল নম্বর" value={studentRoll} onChange={e => setStudentRoll(e.target.value)} className="bg-transparent outline-none w-full text-lg font-medium text-[#1D1D1F] dark:text-white placeholder:text-gray-400" /></div></div>{exam?.require_institution && <div className="space-y-2"><label className="text-xs font-bold text-gray-400 uppercase tracking-widest ml-1">School/College</label><div className="flex items-center gap-3 bg-gray-50 dark:bg-black/40 px-5 h-14 rounded-2xl border border-transparent focus-within:border-primary focus-within:bg-white dark:focus-within:bg-black focus-within:shadow-lg focus-within:shadow-primary/10 transition-all"><BookOpenCheck size={20} className="text-gray-400" /><input type="text" placeholder="প্রতিষ্ঠানের নাম" value={studentInstitution} onChange={e => setStudentInstitution(e.target.value)} className="bg-transparent outline-none w-full text-lg font-medium text-[#1D1D1F] dark:text-white placeholder:text-gray-400" /></div></div>}<div className="pt-4"><button onClick={startExam} disabled={loading} className="group w-full h-14 bg-[#1D1D1F] dark:bg-white text-white dark:text-black rounded-2xl font-bold text-lg shadow-xl shadow-black/10 hover:scale-[1.02] active:scale-95 transition-all flex items-center justify-center gap-2 disabled:opacity-70 disabled:cursor-not-allowed">{loading ? <Loader2 className="animate-spin" /> : <>এক্সাম শুরু করুন <ChevronRight size={20} className="group-hover:translate-x-1 transition-transform" /></>}</button></div></div>}
         </div>
       </div>
     );
@@ -1067,30 +1022,10 @@ export const PublicExam: React.FC<PublicExamProps> = ({ examId, theme, toggleThe
   // --- SUBMITTED SCREEN (RESULTS VIEW) ---
   if (stage === 'submitted') {
       // Logic Check: Should we show results?
-      // Default to true if the property is undefined (for backward compatibility)
       const showResults = exam.show_results_instant !== false;
+      const allowPhotocard = exam.allow_photocard === true;
 
-      if (!showResults) {
-          return (
-              <div className="fixed inset-0 w-full h-full bg-[#F5F5F7] dark:bg-black flex flex-col items-center justify-center z-[50] p-6 text-center animate-in fade-in zoom-in-95">
-                  <div className="bg-white dark:bg-[#1C1C1E] p-10 rounded-[32px] shadow-2xl max-w-md w-full border border-gray-100 dark:border-white/5">
-                      <div className="w-24 h-24 bg-green-100 dark:bg-green-900/20 rounded-full flex items-center justify-center mx-auto mb-6 text-green-600 dark:text-green-500 shadow-sm">
-                          <CheckCircle2 size={48} strokeWidth={2.5} />
-                      </div>
-                      <h2 className="text-3xl font-black text-[#1D1D1F] dark:text-white mb-2 tracking-tight">Exam Submitted!</h2>
-                      <p className="text-gray-500 font-medium mb-8 text-sm md:text-base leading-relaxed">
-                          আপনার উত্তরপত্র সফলভাবে জমা নেওয়া হয়েছে। খুব শীঘ্রই ফলাফল প্রকাশ করা হবে।
-                      </p>
-                      
-                      <button onClick={handleHomeClick} className="w-full py-4 bg-[#1D1D1F] dark:bg-white text-white dark:text-black rounded-2xl font-bold text-base shadow-xl shadow-black/10 dark:shadow-white/10 hover:scale-[1.02] active:scale-95 transition-all flex items-center justify-center gap-2">
-                          <Home size={18} /> হোমে ফিরে যান
-                      </button>
-                  </div>
-              </div>
-          );
-      }
-
-      // ... existing result calculation logic ...
+      // Calculate results regardless of showResults to support Photocard
       const correctCount = questions.filter(q => q.question_type === 'mcq' && answers[q.id] === q.correct_answer).length;
       const wrongCount = questions.filter(q => q.question_type === 'mcq' && answers[q.id] && answers[q.id] !== q.correct_answer).length;
       const skippedCount = questions.filter(q => q.question_type === 'mcq' && !answers[q.id]).length;
@@ -1100,6 +1035,98 @@ export const PublicExam: React.FC<PublicExamProps> = ({ examId, theme, toggleThe
           }
           return acc;
       }, 0);
+
+      const totalPossibleMarks = questions.reduce((a,b) => a + (b.marks||1), 0);
+
+      if (!showResults) {
+          return (
+              <div className="fixed inset-0 w-full h-full bg-[#F5F5F7] dark:bg-black flex flex-col items-center justify-start z-[50] p-6 overflow-y-auto animate-in fade-in zoom-in-95">
+                  <div className="max-w-md w-full space-y-6 py-12">
+                    <div className="bg-white dark:bg-[#1C1C1E] p-10 rounded-[32px] shadow-2xl border border-gray-100 dark:border-white/5 text-center">
+                        <div className="w-20 h-20 bg-green-100 dark:bg-green-900/20 rounded-full flex items-center justify-center mx-auto mb-6 text-green-600 dark:text-green-500 shadow-sm">
+                            <CheckCircle2 size={40} strokeWidth={2.5} />
+                        </div>
+                        <h2 className="text-2xl font-black text-[#1D1D1F] dark:text-white mb-2 tracking-tight">Exam Submitted!</h2>
+                        <p className="text-gray-500 font-medium mb-8 text-sm leading-relaxed">
+                            আপনার উত্তরপত্র সফলভাবে জমা নেওয়া হয়েছে। খুব শীঘ্রই ফলাফল প্রকাশ করা হবে।
+                        </p>
+                        
+                        <button onClick={handleHomeClick} className="w-full py-4 bg-[#1D1D1F] dark:bg-white text-white dark:text-black rounded-2xl font-bold text-base shadow-xl shadow-black/10 dark:shadow-white/10 hover:scale-[1.02] active:scale-95 transition-all flex items-center justify-center gap-2 mb-6">
+                            <Home size={18} /> হোমে ফিরে যান
+                        </button>
+
+                        {/* Social Links for non-instant results */}
+                        {(exam?.fb_link || exam?.tg_link || exam?.ws_link) && (
+                          <div className="space-y-4 w-full">
+                            <p className="text-xs font-bold text-gray-500 dark:text-gray-400 text-center animate-pulse">
+                              Live result dekhte join koro jekonotay..
+                            </p>
+                            <div className="flex flex-wrap justify-center gap-2">
+                              {exam.fb_link && (
+                                <a href={exam.fb_link} target="_blank" rel="noreferrer" className="flex-1 flex items-center justify-center gap-2 px-4 py-2.5 bg-[#1877F2]/10 text-[#1877F2] rounded-xl font-bold text-xs hover:bg-[#1877F2]/20 transition-colors border border-[#1877F2]/20">
+                                  Facebook
+                                </a>
+                              )}
+                              {exam.tg_link && (
+                                <a href={exam.tg_link} target="_blank" rel="noreferrer" className="flex-1 flex items-center justify-center gap-2 px-4 py-2.5 bg-[#0088cc]/10 text-[#0088cc] rounded-xl font-bold text-xs hover:bg-[#0088cc]/20 transition-colors border border-[#0088cc]/20">
+                                  Telegram
+                                </a>
+                              )}
+                              {exam.ws_link && (
+                                <a href={exam.ws_link} target="_blank" rel="noreferrer" className="flex-1 flex items-center justify-center gap-2 px-4 py-2.5 bg-[#25D366]/10 text-[#25D366] rounded-xl font-bold text-xs hover:bg-[#25D366]/20 transition-colors border border-[#25D366]/20">
+                                  WhatsApp
+                                </a>
+                              )}
+                            </div>
+                          </div>
+                        )}
+                    </div>
+
+                    {allowPhotocard && (
+                      <div className="bg-white dark:bg-[#1C1C1E] p-6 rounded-[32px] shadow-2xl border border-gray-100 dark:border-white/5">
+                        <div className="text-center mb-6">
+                           <h3 className="text-lg font-bold text-[#1D1D1F] dark:text-white">আপনার পার্সোনালাইজড কার্ড</h3>
+                           <p className="text-xs text-gray-500 mt-1">এটি সোশ্যাল মিডিয়ায় শেয়ার করতে পারেন</p>
+                        </div>
+                        
+                        {!showPhotocard ? (
+                          <button 
+                            onClick={() => setShowPhotocard(true)}
+                            className="w-full py-4 bg-primary/10 text-primary rounded-2xl font-bold text-sm hover:bg-primary/20 transition-all flex items-center justify-center gap-2"
+                          >
+                            <Award size={18} /> ফটোকার্ড জেনারেট করুন
+                          </button>
+                        ) : (
+                          <Photocard 
+                            studentName={studentName || savedIdentity?.name || 'Student'}
+                            studentRoll={studentRoll || savedIdentity?.roll || 'N/A'}
+                            institution={studentInstitution || savedIdentity?.institution || ''}
+                            examTitle={exam.title}
+                            score={score || 0}
+                            totalMarks={totalPossibleMarks}
+                            correctCount={correctCount}
+                            wrongCount={wrongCount}
+                            skippedCount={skippedCount}
+                            avgTimePerQuestion={timeTaken !== null && questions.length > 0 ? `${(timeTaken / questions.length).toFixed(1)}s` : "N/A"}
+                            rank={studentRank || undefined}
+                            avatarUrl={`https://api.dicebear.com/7.x/avataaars/svg?seed=${studentName || savedIdentity?.name || 'Student'}`}
+                            customTemplateUrl={exam.custom_photocard_url}
+                            customTitle={exam.photocard_title}
+                            bgColor={exam.photocard_bg_color}
+                            textColor={exam.photocard_text_color}
+                            accentColor={exam.photocard_accent_color}
+                            showRank={exam.photocard_show_rank !== false}
+                            showStats={exam.photocard_show_stats !== false}
+                            coachingName={exam.coaching_name}
+                            isPreview={true}
+                          />
+                        )}
+                      </div>
+                    )}
+                  </div>
+              </div>
+          );
+      }
 
       const displayedQuestions = questions.filter(q => {
           if (resultFilter === 'correct') return q.question_type === 'mcq' && answers[q.id] === q.correct_answer;
@@ -1129,7 +1156,7 @@ export const PublicExam: React.FC<PublicExamProps> = ({ examId, theme, toggleThe
                       <p className="text-xs font-bold text-gray-400 uppercase tracking-widest mb-2">Total Score</p>
                       <div onClick={() => setResultFilter('all')} className="cursor-pointer group relative">
                           <h1 className={`text-7xl md:text-8xl font-black tracking-tighter leading-none mb-1 transition-colors ${resultFilter === 'all' ? 'text-primary' : 'text-[#1D1D1F] dark:text-white'}`}>{Number(score).toFixed(2)}</h1>
-                          <p className="text-sm font-bold text-gray-400">OUT OF {questions.reduce((a,b) => a + (b.marks||1), 0)}</p>
+                          <p className="text-sm font-bold text-gray-400">OUT OF {totalPossibleMarks}</p>
                       </div>
                       <div className="mt-8 flex flex-wrap justify-center gap-3 md:gap-4">
                           <button onClick={() => setResultFilter('correct')} className={`flex items-center gap-2 px-4 py-2 rounded-full border transition-all ${resultFilter === 'correct' ? 'bg-green-50 dark:bg-green-900/20 border-green-200 dark:border-green-900/30 text-green-700 dark:text-green-400' : 'bg-white dark:bg-[#1C1C1E] border-gray-100 dark:border-white/10 text-gray-500 hover:border-gray-300 dark:hover:border-white/20'}`}><CheckCircle2 size={16} className={resultFilter === 'correct' ? 'text-green-600' : 'text-gray-400'} /><span className="text-sm font-bold">Correct: {correctCount}</span></button>
@@ -1137,21 +1164,96 @@ export const PublicExam: React.FC<PublicExamProps> = ({ examId, theme, toggleThe
                           <div className="flex items-center gap-2 px-4 py-2 rounded-full border bg-white dark:bg-[#1C1C1E] border-gray-100 dark:border-white/10 text-gray-500"><AlertTriangle size={16} className="text-orange-500" /><span className="text-sm font-bold">Negative: -{Number(negativeMarks).toFixed(2)}</span></div>
                           <div className="flex items-center gap-2 px-4 py-2 rounded-full border bg-white dark:bg-[#1C1C1E] border-gray-100 dark:border-white/10 text-gray-500"><MinusCircle size={16} className="text-gray-400" /><span className="text-sm font-bold">Skipped: {skippedCount}</span></div>
                       </div>
-                      <button onClick={downloadMistakesPDF} className="mt-6 flex items-center gap-2 px-6 py-3 bg-red-50 dark:bg-red-900/20 text-red-600 dark:text-red-400 rounded-xl font-bold text-sm hover:bg-red-100 dark:hover:bg-red-900/30 transition-all border border-red-100 dark:border-red-900/30 shadow-sm"><Download size={16} /> Download Incorrect Answers PDF</button>
                       
-                      {exam?.allow_photocard && (
-                        <Photocard 
-                          studentName={studentName || savedIdentity?.name || 'Student'}
-                          studentRoll={studentRoll || savedIdentity?.roll || 'N/A'}
-                          examTitle={exam.title}
-                          score={score || 0}
-                          totalMarks={questions.reduce((a,b) => a + (b.marks||1), 0)}
-                          correctCount={correctCount}
-                          wrongCount={wrongCount}
-                          skippedCount={skippedCount}
-                          avgTimePerQuestion={timeTaken !== null && questions.length > 0 ? `${(timeTaken / questions.length).toFixed(1)}s` : "N/A"}
-                          rank={studentRank || undefined}
-                        />
+                      {/* Social Links */}
+                      {(exam?.fb_link || exam?.tg_link || exam?.ws_link) && (
+                          <div className="mt-8 space-y-4 w-full max-w-2xl mx-auto">
+                              <p className="text-sm font-bold text-gray-500 dark:text-gray-400 text-center animate-pulse">
+                                Live result dekhte join koro jekonotay..
+                              </p>
+                              <div className="flex flex-wrap justify-center gap-3">
+                                  {exam.fb_link && (
+                                      <a href={exam.fb_link} target="_blank" rel="noreferrer" className="flex-1 flex items-center justify-center gap-2 px-5 py-3 bg-[#1877F2]/10 text-[#1877F2] rounded-xl font-bold text-sm hover:bg-[#1877F2]/20 transition-colors border border-[#1877F2]/20">
+                                          Facebook Group
+                                      </a>
+                                  )}
+                                  {exam.tg_link && (
+                                      <a href={exam.tg_link} target="_blank" rel="noreferrer" className="flex-1 flex items-center justify-center gap-2 px-5 py-3 bg-[#0088cc]/10 text-[#0088cc] rounded-xl font-bold text-sm hover:bg-[#0088cc]/20 transition-colors border border-[#0088cc]/20">
+                                          Telegram Group
+                                      </a>
+                                  )}
+                                  {exam.ws_link && (
+                                      <a href={exam.ws_link} target="_blank" rel="noreferrer" className="flex-1 flex items-center justify-center gap-2 px-5 py-3 bg-[#25D366]/10 text-[#25D366] rounded-xl font-bold text-sm hover:bg-[#25D366]/20 transition-colors border border-[#25D366]/20">
+                                          WhatsApp Group
+                                      </a>
+                                  )}
+                              </div>
+                          </div>
+                      )}
+
+                      {allowPhotocard && (
+                        <div className="mt-12 w-full max-w-2xl mx-auto">
+                           {!showPhotocard ? (
+                            <button 
+                              onClick={() => setShowPhotocard(true)}
+                              className="w-full py-5 bg-primary text-white rounded-[24px] font-black text-xl shadow-2xl shadow-primary/30 hover:scale-[1.02] active:scale-95 transition-all flex items-center justify-center gap-3"
+                            >
+                              <Award size={24} /> ফটোকার্ড জেনারেট করুন
+                            </button>
+                          ) : (
+                            <div className="animate-in fade-in zoom-in duration-500">
+                              <Photocard 
+                                studentName={studentName || savedIdentity?.name || 'Student'}
+                                studentRoll={studentRoll || savedIdentity?.roll || 'N/A'}
+                                institution={studentInstitution || savedIdentity?.institution || ''}
+                                examTitle={exam.title}
+                                score={score || 0}
+                                totalMarks={totalPossibleMarks}
+                                correctCount={correctCount}
+                                wrongCount={wrongCount}
+                                skippedCount={skippedCount}
+                                avgTimePerQuestion={timeTaken !== null && questions.length > 0 ? `${(timeTaken / questions.length).toFixed(1)}s` : "N/A"}
+                                rank={studentRank || undefined}
+                                avatarUrl={`https://api.dicebear.com/7.x/avataaars/svg?seed=${studentName || savedIdentity?.name || 'Student'}`}
+                                customTemplateUrl={exam.custom_photocard_url}
+                                customTitle={exam.photocard_title}
+                                bgColor={exam.photocard_bg_color}
+                                textColor={exam.photocard_text_color}
+                                accentColor={exam.photocard_accent_color}
+                                showRank={exam.photocard_show_rank !== false}
+                                showStats={exam.photocard_show_stats !== false}
+                                coachingName={exam.coaching_name}
+                                isPreview={true}
+                              />
+                            </div>
+                          )}
+                        </div>
+                      )}
+
+                      {/* Social Links for results view */}
+                      {(exam?.fb_link || exam?.tg_link || exam?.ws_link) && (
+                        <div className="mt-8 w-full max-w-2xl mx-auto space-y-4">
+                          <p className="text-xs font-bold text-gray-500 dark:text-gray-400 text-center animate-pulse">
+                            Live result dekhte join koro jekonotay..
+                          </p>
+                          <div className="flex flex-wrap justify-center gap-2">
+                            {exam.fb_link && (
+                              <a href={exam.fb_link} target="_blank" rel="noreferrer" className="flex-1 flex items-center justify-center gap-2 px-4 py-2.5 bg-[#1877F2]/10 text-[#1877F2] rounded-xl font-bold text-xs hover:bg-[#1877F2]/20 transition-colors border border-[#1877F2]/20">
+                                Facebook
+                              </a>
+                            )}
+                            {exam.tg_link && (
+                              <a href={exam.tg_link} target="_blank" rel="noreferrer" className="flex-1 flex items-center justify-center gap-2 px-4 py-2.5 bg-[#0088cc]/10 text-[#0088cc] rounded-xl font-bold text-xs hover:bg-[#0088cc]/20 transition-colors border border-[#0088cc]/20">
+                                Telegram
+                              </a>
+                            )}
+                            {exam.ws_link && (
+                              <a href={exam.ws_link} target="_blank" rel="noreferrer" className="flex-1 flex items-center justify-center gap-2 px-4 py-2.5 bg-[#25D366]/10 text-[#25D366] rounded-xl font-bold text-xs hover:bg-[#25D366]/20 transition-colors border border-[#25D366]/20">
+                                WhatsApp
+                              </a>
+                            )}
+                          </div>
+                        </div>
                       )}
 
                       {resultFilter !== 'all' && <button onClick={() => setResultFilter('all')} className="mt-4 text-xs font-bold text-primary hover:underline flex items-center gap-1"><RotateCcw size={12} /> View Full Paper</button>}

@@ -93,11 +93,20 @@ const CACHE_SALT = "EXAMiO_Smart_Cache_v1";
 export const obfuscateData = (data: any): string => {
     try {
         const json = JSON.stringify(data);
-        let result = '';
-        for (let i = 0; i < json.length; i++) {
-            result += String.fromCharCode(json.charCodeAt(i) ^ CACHE_SALT.charCodeAt(i % CACHE_SALT.length));
+        const encoder = new TextEncoder();
+        const bytes = encoder.encode(json);
+        const saltBytes = encoder.encode(CACHE_SALT);
+        
+        const result = new Uint8Array(bytes.length);
+        for (let i = 0; i < bytes.length; i++) {
+            result[i] = bytes[i] ^ saltBytes[i % saltBytes.length];
         }
-        return btoa(result);
+        
+        let binary = '';
+        for (let i = 0; i < result.length; i++) {
+            binary += String.fromCharCode(result[i]);
+        }
+        return btoa(binary);
     } catch (e) {
         console.error("Obfuscation Failed", e);
         return "";
@@ -105,13 +114,30 @@ export const obfuscateData = (data: any): string => {
 };
 
 export const deobfuscateData = (cipher: string): any => {
+    if (!cipher) return null;
     try {
-        const str = atob(cipher);
-        let result = '';
-        for (let i = 0; i < str.length; i++) {
-            result += String.fromCharCode(str.charCodeAt(i) ^ CACHE_SALT.charCodeAt(i % CACHE_SALT.length));
+        // Basic validation for base64
+        const trimmed = cipher.trim();
+        if (!/^[A-Za-z0-9+/]*={0,2}$/.test(trimmed)) {
+            return null;
         }
-        return JSON.parse(result);
+        const binary = atob(trimmed);
+        const bytes = new Uint8Array(binary.length);
+        for (let i = 0; i < binary.length; i++) {
+            bytes[i] = binary.charCodeAt(i);
+        }
+        
+        const encoder = new TextEncoder();
+        const saltBytes = encoder.encode(CACHE_SALT);
+        
+        const result = new Uint8Array(bytes.length);
+        for (let i = 0; i < bytes.length; i++) {
+            result[i] = bytes[i] ^ saltBytes[i % saltBytes.length];
+        }
+        
+        const decoder = new TextDecoder();
+        const json = decoder.decode(result);
+        return JSON.parse(json);
     } catch (e) {
         console.error("Deobfuscation Failed", e);
         return null;
