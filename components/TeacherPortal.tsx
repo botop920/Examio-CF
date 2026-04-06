@@ -406,7 +406,7 @@ export const TeacherPortal: React.FC<TeacherPortalProps> = ({
       const readIds = JSON.parse(
         localStorage.getItem(`read_announcements_${contextTeacherId}`) || "[]",
       );
-      const unread = data.filter((a) => !readIds.includes(a.id)).length;
+      const unread = data.filter((a: any) => !readIds.includes(a.id)).length;
       setUnreadCount(unread);
     }
   };
@@ -414,7 +414,7 @@ export const TeacherPortal: React.FC<TeacherPortalProps> = ({
   const handleOpenAnnouncements = () => {
     setShowAnnouncements(true);
     setUnreadCount(0);
-    const ids = announcements.map((a) => a.id);
+    const ids = announcements.map((a: any) => a.id);
     localStorage.setItem(
       `read_announcements_${contextTeacherId}`,
       JSON.stringify(ids),
@@ -557,7 +557,7 @@ export const TeacherPortal: React.FC<TeacherPortalProps> = ({
     if (!error && data)
       setExams(
         data.sort(
-          (a, b) =>
+          (a: any, b: any) =>
             new Date(b.created_at).getTime() - new Date(a.created_at).getTime(),
         ),
       );

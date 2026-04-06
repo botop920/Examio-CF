@@ -102,7 +102,7 @@ function App() {
     // Check active session
     supabase.auth
       .getSession()
-      .then(({ data: { session }, error }) => {
+      .then(({ data: { session }, error }: any) => {
         if (error) {
           console.error("Error getting session:", error);
           setLoading(false);
@@ -110,7 +110,7 @@ function App() {
           handleSessionRouting(session);
         }
       })
-      .catch((err) => {
+      .catch((err: any) => {
         console.error("Unexpected error getting session:", err);
         setLoading(false);
       });
@@ -118,7 +118,7 @@ function App() {
     // Listen for auth changes
     const {
       data: { subscription },
-    } = supabase.auth.onAuthStateChange((_event, session) => {
+    } = supabase.auth.onAuthStateChange((_event: any, session: any) => {
       handleSessionRouting(session);
     });
 

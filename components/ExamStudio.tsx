@@ -92,6 +92,16 @@ export const ExamStudio: React.FC<ExamStudioProps> = ({ onExamCreated }) => {
   const [availBatches, setAvailBatches] = useState<any[]>([]); 
   const [files, setFiles] = useState<File[]>([]); // Changed to array
   const [includeExplanation, setIncludeExplanation] = useState(true); 
+  
+  // AI Extraction Options
+  const [showAdvancedOptions, setShowAdvancedOptions] = useState(false);
+  const [isImportantEnabled, setIsImportantEnabled] = useState(false);
+  const [importantCount, setImportantCount] = useState('');
+  const [isDifficultyEnabled, setIsDifficultyEnabled] = useState(false);
+  const [trickyCount, setTrickyCount] = useState('');
+  const [conceptualCount, setConceptualCount] = useState('');
+  const [hardCount, setHardCount] = useState('');
+  const [generateVariations, setGenerateVariations] = useState(false);
 
   // Question State
   const [questions, setQuestions] = useState<any[]>([]);
@@ -234,8 +244,8 @@ export const ExamStudio: React.FC<ExamStudioProps> = ({ onExamCreated }) => {
               setBankQuestions(data);
           } else {
               setBankQuestions(prev => {
-                  const existingIds = new Set(prev.map(q => q.id));
-                  const newItems = data.filter(q => !existingIds.has(q.id));
+                  const existingIds = new Set(prev.map((q: any) => q.id));
+                  const newItems = data.filter((q: any) => !existingIds.has(q.id));
                   return [...prev, ...newItems];
               });
           }
@@ -307,6 +317,11 @@ export const ExamStudio: React.FC<ExamStudioProps> = ({ onExamCreated }) => {
       Subject: ${subject}
       Chapter: ${chapter}
       Topic: ${topic}
+      
+      User Preferences:
+      ${isImportantEnabled && importantCount ? `- Prioritize extracting at least ${importantCount} MOST IMPORTANT questions (high exam probability).` : ''}
+      ${isDifficultyEnabled && (trickyCount || conceptualCount || hardCount) ? `- Difficulty Distribution: ${trickyCount ? trickyCount + ' tricky, ' : ''}${conceptualCount ? conceptualCount + ' conceptual, ' : ''}${hardCount ? hardCount + ' hard' : ''} questions.` : ''}
+      ${generateVariations ? `- VARIATION MODE ENABLED: You MUST NOT output the original questions found in the image. Instead, for every question you identify that matches the user's criteria (Important, Tricky, etc.), you MUST generate a VARIATION of it. This variation must have the EXACT same language and logic, but DIFFERENT numerical values or data points. CRITICAL: You MUST RE-CALCULATE the correct answer and ALL options (A, B, C, D) based on the new values. DO NOT COPY THE ORIGINAL OPTIONS FROM THE IMAGE. Ensure the options are plausible and the correct answer is accurately reflected in the options list. Only output the variations as the final questions. Do not output the original questions from the image.` : ''}
       `;
 
       let promptText = "";
@@ -318,15 +333,17 @@ export const ExamStudio: React.FC<ExamStudioProps> = ({ onExamCreated }) => {
           CRITICAL RULES FOR EXTRACTION:
           1. **LANGUAGE PRESERVATION**: DETECT the language of the text in the images (e.g., Bengali, English). YOU MUST OUTPUT 'question_text', 'options', and 'explanation' IN THE EXACT SAME LANGUAGE AS THE SOURCE. DO NOT TRANSLATE.
           2. Iterate through EVERY image. Extract ALL questions found.
-          3. **GRAPH/DIAGRAM/FIGURES**: If a question relies on a graph, diagram, or figure shown in the image, YOU MUST EXTRACT IT. 
+          3. **IMPORTANT & DIFFICULTY**: If user requested specific counts for important/tricky/conceptual/hard questions, prioritize finding them. If the images don't have enough, GENERATE high-quality questions of those types based on the provided context.
+          4. **VARIATION MODE**: If enabled, for each suitable question found (especially those with numerical values), generate a variation with different data values. Ensure options and correct answer are updated to match the new values.
+          5. **GRAPH/DIAGRAM/FIGURES**: If a question relies on a graph, diagram, or figure shown in the image, YOU MUST EXTRACT IT. 
              - Set the field "requires_diagram": true.
              - Transcribe the text of the question accurately.
-          4. **AUTO-GENERATE OPTIONS**: If a question is found in the image but it has NO options (it is a standard question) BUT I need MCQ:
+          6. **AUTO-GENERATE OPTIONS**: If a question is found in the image but it has NO options (it is a standard question) BUT I need MCQ:
              - You MUST GENERATE 4 plausible academic options (A, B, C, D) for it IN THE SAME LANGUAGE.
              - Identify the correct answer among your generated options.
-          5. **EXISTING MCQs**: If the question in the image already has options, extract them exactly.
-          6. Solve for 'correct_answer'. It MUST match one of the options exactly.
-          7. Convert math to LaTeX. IMPORTANT: Double escape backslashes (e.g. \\\\frac, \\\\vec) for valid JSON string. ALWAYS WRAP MATH IN $...$ (e.g. $\\\\frac{a}{b}$).
+          7. **EXISTING MCQs**: If the question in the image already has options, extract them exactly.
+          8. Solve for 'correct_answer'. It MUST match one of the options exactly.
+          9. Convert math to LaTeX. IMPORTANT: Double escape backslashes (e.g. \\\\frac, \\\\vec) for valid JSON string. ALWAYS WRAP MATH IN $...$ (e.g. $\\\\frac{a}{b}$).
           
           Output Format: NDJSON (Newline Delimited JSON).
           - Output EACH question as a SINGLE LINE of valid JSON.
@@ -335,8 +352,8 @@ export const ExamStudio: React.FC<ExamStudioProps> = ({ onExamCreated }) => {
           - DO NOT use commas between objects.
           
           Example Line:
-          {"question_text": "...", "options": ["...", "..."], "correct_answer": "...", "explanation": "...", "requires_diagram": false}
-          ${includeExplanation ? 'Include explanation in the detected language.' : ''}
+          {"question_text": "...", "options": ["...", "..."], "correct_answer": "...", ${includeExplanation ? '"explanation": "...", ' : ''}"requires_diagram": false}
+          ${includeExplanation ? 'CRITICAL: Include a brief explanation for the correct answer in the detected language.' : 'CRITICAL: DO NOT include an explanation field in the JSON output.'}
           `;
       } else {
           promptText = `
@@ -346,9 +363,11 @@ export const ExamStudio: React.FC<ExamStudioProps> = ({ onExamCreated }) => {
           Guidelines:
           1. **LANGUAGE PRESERVATION**: DETECT the language of the text in the images. OUTPUT 'question_text' IN THE EXACT SAME LANGUAGE AS THE SOURCE. DO NOT TRANSLATE.
           2. CRITICAL: Iterate through EVERY image.
-          3. **GRAPH/DIAGRAM/FIGURES**: If a question relies on a graph, diagram, or figure, EXTRACT IT and set "requires_diagram": true.
-          4. IGNORE theory/definitions unless they are numbered questions.
-          5. Convert math to LaTeX. IMPORTANT: Double escape backslashes (e.g. \\\\frac, \\\\vec). ALWAYS WRAP MATH IN $...$ (e.g. $\\\\frac{a}{b}$).
+          3. **IMPORTANT & DIFFICULTY**: If user requested specific counts for important/tricky/conceptual/hard questions, prioritize finding them. If the images don't have enough, GENERATE high-quality questions of those types based on the provided context.
+          4. **VARIATION MODE**: If enabled, for each suitable question found, generate a variation with different data values while keeping the logic same.
+          5. **GRAPH/DIAGRAM/FIGURES**: If a question relies on a graph, diagram, or figure, EXTRACT IT and set "requires_diagram": true.
+          6. IGNORE theory/definitions unless they are numbered questions.
+          7. Convert math to LaTeX. IMPORTANT: Double escape backslashes (e.g. \\\\frac, \\\\vec). ALWAYS WRAP MATH IN $...$ (e.g. $\\\\frac{a}{b}$).
           
           Output Format: NDJSON (Newline Delimited JSON).
           - Output EACH question as a SINGLE LINE of valid JSON.
@@ -426,7 +445,7 @@ export const ExamStudio: React.FC<ExamStudioProps> = ({ onExamCreated }) => {
                                   type: examType,
                                   options: examType === 'mcq' ? options : [],
                                   correct: examType === 'mcq' ? correct : '',
-                                  explanation: q.explanation || '',
+                                  explanation: includeExplanation ? (q.explanation || '') : '',
                                   marks: parseFloat(defaultMarks) || 1,
                                   hasDiagram: !!q.requires_diagram
                               };
@@ -469,7 +488,7 @@ export const ExamStudio: React.FC<ExamStudioProps> = ({ onExamCreated }) => {
                                   type: examType,
                                   options: examType === 'mcq' ? options : [],
                                   correct: examType === 'mcq' ? correct : '',
-                                  explanation: q.explanation || '',
+                                  explanation: includeExplanation ? (q.explanation || '') : '',
                                   marks: parseFloat(defaultMarks) || 1,
                                   hasDiagram: !!q.requires_diagram
                               };
@@ -706,7 +725,7 @@ export const ExamStudio: React.FC<ExamStudioProps> = ({ onExamCreated }) => {
       setIsEnhancing(true);
       try {
           const ai = new GoogleGenAI({ apiKey: process.env.API_KEY });
-          const prompt = `Task: Enhance raw question to MCQ. Input: "${newQuestionText}". Rules: Fix grammar, Math to LaTeX (WRAP IN $...$), Generate 4 options, Solve, Write explanation. Output JSON: { "question_text": "...", "options": ["..."], "correct_answer": "...", "explanation": "..." }. IMPORTANT: Escape LaTeX backslashes (e.g. \\\\vec, \\\\frac). KEEP ORIGINAL LANGUAGE.`;
+          const prompt = `Task: Enhance raw question to MCQ. Input: "${newQuestionText}". Rules: Fix grammar, Math to LaTeX (WRAP IN $...$), Generate 4 options, Solve${includeExplanation ? ', Write explanation' : ''}. Output JSON: { "question_text": "...", "options": ["..."], "correct_answer": "..."${includeExplanation ? ', "explanation": "..."' : ''} }. IMPORTANT: Escape LaTeX backslashes (e.g. \\\\vec, \\\\frac). KEEP ORIGINAL LANGUAGE.`;
           const response = await ai.models.generateContent({ 
               model: 'gemini-3.1-flash-lite-preview', 
               contents: [{ role: 'user', parts: [{ text: prompt }] }], 
@@ -725,7 +744,7 @@ export const ExamStudio: React.FC<ExamStudioProps> = ({ onExamCreated }) => {
                   setOptionFiles(new Array(json.options.length).fill(null));
               }
               if (json.correct_answer) setNewQuestionCorrect(json.correct_answer);
-              if (json.explanation) setNewQuestionExplanation(json.explanation);
+              setNewQuestionExplanation(includeExplanation ? (json.explanation || '') : '');
               toast.success("Question Enhanced & Auto-filled!");
           } else {
               toast.error("Could not enhance. Please try again.");
@@ -1417,7 +1436,120 @@ export const ExamStudio: React.FC<ExamStudioProps> = ({ onExamCreated }) => {
                                  <span className="text-sm font-bold text-gray-600 dark:text-gray-300">Add Short Explanation (AI Generated)</span>
                             </div>
                         )}
-                        <button onClick={handleAiExtraction} disabled={files.length === 0 || loading} className="mt-6 px-10 h-14 bg-primary text-white rounded-2xl font-bold flex items-center gap-2 shadow-xl shadow-primary/20 hover:scale-105 active:scale-95 transition-all disabled:opacity-50 disabled:scale-100 disabled:shadow-none">
+
+                        {/* Advanced Settings Toggle */}
+                        <div className="mt-6 w-full max-w-2xl">
+                            <button 
+                                onClick={() => setShowAdvancedOptions(!showAdvancedOptions)}
+                                className="flex items-center gap-2 text-sm font-bold text-gray-500 hover:text-primary transition-colors group relative"
+                            >
+                                <div className={`p-1.5 rounded-lg bg-gray-100 dark:bg-white/5 transition-transform duration-300 ${showAdvancedOptions ? 'rotate-180' : ''}`}>
+                                    <ChevronDown size={16} />
+                                </div>
+                                <div className="flex flex-col items-start leading-none">
+                                    <span className="text-[10px] font-black text-primary/60 tracking-tighter mb-0.5">BETA</span>
+                                    <span>Advanced Settings (অ্যাডভান্সড সেটিংস)</span>
+                                </div>
+                            </button>
+                        </div>
+
+                        {/* AI Extraction Advanced Options */}
+                        {showAdvancedOptions && (
+                            <div className="w-full max-w-2xl mt-4 space-y-6 animate-in fade-in slide-in-from-top-4 duration-500">
+                                
+                                {/* Important Questions */}
+                                <div className={`p-4 rounded-2xl border transition-all ${isImportantEnabled ? 'bg-yellow-50/50 dark:bg-yellow-900/10 border-yellow-200 dark:border-yellow-900/30' : 'bg-gray-50 dark:bg-white/5 border-transparent'}`}>
+                                    <div className="flex items-center justify-between mb-3 cursor-pointer" onClick={() => setIsImportantEnabled(!isImportantEnabled)}>
+                                        <div className="flex items-center gap-3">
+                                            <div className={`w-5 h-5 rounded-md border-2 flex items-center justify-center transition-colors ${isImportantEnabled ? 'bg-yellow-500 border-yellow-500' : 'border-gray-300 dark:border-gray-600'}`}>
+                                                {isImportantEnabled && <Check size={14} className="text-white" />}
+                                            </div>
+                                            <span className="text-sm font-bold text-gray-700 dark:text-gray-200 flex items-center gap-2">
+                                                <Award size={16} className="text-yellow-500" /> সবচেয়ে গুরুত্বপূর্ণ প্রশ্ন (পরীক্ষায় আসার সম্ভাবনা বেশি)
+                                            </span>
+                                        </div>
+                                    </div>
+                                    {isImportantEnabled && (
+                                        <div className="pl-8 animate-in fade-in slide-in-from-top-2 duration-300">
+                                            <div className="flex items-center gap-3">
+                                                <span className="text-xs font-medium text-gray-500">কয়টি প্রশ্ন?</span>
+                                                <input 
+                                                    type="number" 
+                                                    value={importantCount} 
+                                                    onChange={e => setImportantCount(e.target.value)} 
+                                                    placeholder="উদা: ৫" 
+                                                    className="w-24 h-10 px-3 rounded-xl bg-white dark:bg-black border border-gray-200 dark:border-white/10 dark:text-white outline-none focus:ring-1 focus:ring-yellow-500/50" 
+                                                />
+                                            </div>
+                                        </div>
+                                    )}
+                                </div>
+
+                                {/* Difficulty Distribution */}
+                                <div className={`p-4 rounded-2xl border transition-all ${isDifficultyEnabled ? 'bg-purple-50/50 dark:bg-purple-900/10 border-purple-200 dark:border-purple-900/30' : 'bg-gray-50 dark:bg-white/5 border-transparent'}`}>
+                                    <div className="flex items-center justify-between mb-3 cursor-pointer" onClick={() => setIsDifficultyEnabled(!isDifficultyEnabled)}>
+                                        <div className="flex items-center gap-3">
+                                            <div className={`w-5 h-5 rounded-md border-2 flex items-center justify-center transition-colors ${isDifficultyEnabled ? 'bg-purple-500 border-purple-500' : 'border-gray-300 dark:border-gray-600'}`}>
+                                                {isDifficultyEnabled && <Check size={14} className="text-white" />}
+                                            </div>
+                                            <span className="text-sm font-bold text-gray-700 dark:text-gray-200 flex items-center gap-2">
+                                                <SlidersHorizontal size={16} className="text-purple-500" /> ট্রিকি, কনসেপচুয়াল এবং হার্ড প্রশ্ন
+                                            </span>
+                                        </div>
+                                    </div>
+                                    {isDifficultyEnabled && (
+                                        <div className="pl-8 grid grid-cols-3 gap-3 animate-in fade-in slide-in-from-top-2 duration-300">
+                                            <div className="space-y-1">
+                                                <span className="text-[10px] font-bold text-gray-500 ml-1">ট্রিকি (Tricky)</span>
+                                                <input 
+                                                    type="number" 
+                                                    value={trickyCount} 
+                                                    onChange={e => setTrickyCount(e.target.value)} 
+                                                    placeholder="0" 
+                                                    className="w-full h-10 px-3 rounded-xl bg-white dark:bg-black border border-gray-200 dark:border-white/10 dark:text-white outline-none focus:ring-1 focus:ring-purple-500/50 text-center" 
+                                                />
+                                            </div>
+                                            <div className="space-y-1">
+                                                <span className="text-[10px] font-bold text-gray-500 ml-1">কনসেপচুয়াল</span>
+                                                <input 
+                                                    type="number" 
+                                                    value={conceptualCount} 
+                                                    onChange={e => setConceptualCount(e.target.value)} 
+                                                    placeholder="0" 
+                                                    className="w-full h-10 px-3 rounded-xl bg-white dark:bg-black border border-gray-200 dark:border-white/10 dark:text-white outline-none focus:ring-1 focus:ring-purple-500/50 text-center" 
+                                                />
+                                            </div>
+                                            <div className="space-y-1">
+                                                <span className="text-[10px] font-bold text-gray-500 ml-1">হার্ড (Hard)</span>
+                                                <input 
+                                                    type="number" 
+                                                    value={hardCount} 
+                                                    onChange={e => setHardCount(e.target.value)} 
+                                                    placeholder="0" 
+                                                    className="w-full h-10 px-3 rounded-xl bg-white dark:bg-black border border-gray-200 dark:border-white/10 dark:text-white outline-none focus:ring-1 focus:ring-purple-500/50 text-center" 
+                                                />
+                                            </div>
+                                        </div>
+                                    )}
+                                </div>
+
+                                {/* Variations Toggle */}
+                                <div className={`p-4 rounded-2xl border transition-all ${generateVariations ? 'bg-blue-50/50 dark:bg-blue-900/10 border-blue-200 dark:border-blue-900/30' : 'bg-gray-50 dark:bg-white/5 border-transparent'}`}>
+                                    <div className="flex items-center justify-between cursor-pointer" onClick={() => setGenerateVariations(!generateVariations)}>
+                                        <div className="flex items-center gap-3">
+                                            <div className={`w-5 h-5 rounded-md border-2 flex items-center justify-center transition-colors ${generateVariations ? 'bg-blue-500 border-blue-500' : 'border-gray-300 dark:border-gray-600'}`}>
+                                                {generateVariations && <Check size={14} className="text-white" />}
+                                            </div>
+                                            <span className="text-sm font-bold text-gray-700 dark:text-gray-200 flex items-center gap-2">
+                                                <Wand2 size={16} className="text-blue-500" /> একই প্রশ্ন, কিন্তু ডেটা ভ্যালু ভিন্ন (Variation)
+                                            </span>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+                        )}
+
+                        <button onClick={handleAiExtraction} disabled={files.length === 0 || loading} className="mt-8 px-10 h-14 bg-primary text-white rounded-2xl font-bold flex items-center gap-2 shadow-xl shadow-primary/20 hover:scale-105 active:scale-95 transition-all disabled:opacity-50 disabled:scale-100 disabled:shadow-none">
                             {loading ? <Loader2 className="animate-spin" size={18} /> : <Sparkles size={18} />} Generate from {files.length > 0 ? files.length : ''} Files
                         </button>
                     </div>
