@@ -38,7 +38,7 @@ export default async function handler(req: Request, env: any) {
           status: 200,
           headers: {
             'Content-Type': 'application/json',
-            'Cache-Control': 'public, s-maxage=3600, stale-while-revalidate=600',
+            'Cache-Control': 'no-store, max-age=0, must-revalidate',
             'X-Cache': 'HIT'
           },
         });
@@ -59,10 +59,10 @@ export default async function handler(req: Request, env: any) {
 
     if (error) throw error;
 
-    // 3. Cache in Redis (2 Hours = 7200 seconds)
+    // 3. Cache in Redis (5 Seconds)
     if (data && data.length > 0) {
       try {
-        await redis.set(CACHE_KEY, JSON.stringify(data), { ex: 7200 });
+        await redis.set(CACHE_KEY, JSON.stringify(data), { ex: 5 });
       } catch (redisSetError) {
         console.error('Redis Set Error:', redisSetError);
       }
@@ -72,7 +72,7 @@ export default async function handler(req: Request, env: any) {
       status: 200,
       headers: { 
         'Content-Type': 'application/json',
-        'Cache-Control': 'public, s-maxage=60, stale-while-revalidate=30',
+        'Cache-Control': 'no-store, max-age=0, must-revalidate',
         'X-Cache': 'MISS'
       },
     });

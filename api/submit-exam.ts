@@ -142,7 +142,19 @@ export default async function handler(req: Request, env: any) {
     // B. Set Lock (Prevent Duplicate)
     await redis.set(lockKey, 'true', { ex: 86400 });
 
-    // C. Set Temporary Result Key (For Instant Client Access via API)
+    // C. Invalidate Leaderboard Cache (CRITICAL for Instant Updates)
+    const leaderboardKey = `leaderboard:${exam_id}`;
+    try {
+        await redis.del(leaderboardKey);
+        
+        // D. Trigger Queue Processing in Background (Near-Instant DB Sync)
+        const origin = new URL(req.url).origin;
+        fetch(`${origin}/api/process-queue?secret=Alif123@`).catch(e => console.error("Queue trigger failed", e));
+    } catch (e) {
+        console.error("Failed to invalidate leaderboard cache or trigger queue:", e);
+    }
+
+    // E. Set Temporary Result Key (For Instant Client Access via API)
     const tempResultKey = `temp_res:${exam_id}:${sanitizedRoll}`;
     
     // Client Payload: Score/Solutions are NULL if hidden
