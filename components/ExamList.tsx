@@ -320,7 +320,8 @@ export const ExamList: React.FC<ExamListProps> = ({ onViewResults, onViewOmr, us
                           else if (part.startsWith('\\[')) { math = part.slice(2, -2); displayMode = true; }
                           else if (part.startsWith('\\(')) { math = part.slice(2, -2); displayMode = false; }
                           
-                          return katex.renderToString(math, { throwOnError: false, displayMode, output: 'mathml' });
+                          math = math.replace(/\\\\/g, '\\');
+                          return katex.renderToString(math, { throwOnError: false, displayMode, output: 'html' });
                       } catch (e) { return part; }
                   }
                   return part.replace(/\n/g, '<br/>');
@@ -507,6 +508,9 @@ export const ExamList: React.FC<ExamListProps> = ({ onViewResults, onViewOmr, us
           const pdfWidth = pdf.internal.pageSize.getWidth();
           const pdfHeight = pdf.internal.pageSize.getHeight();
 
+          // Wait for fonts to load (CRITICAL for KaTeX symbols)
+          await document.fonts.ready;
+
           for (let i = 0; i < pages.length; i++) {
               const pageId = `pdf-solution-page-${i}`;
               const pageEl = document.getElementById(pageId);
@@ -603,7 +607,8 @@ export const ExamList: React.FC<ExamListProps> = ({ onViewResults, onViewOmr, us
                           else if (part.startsWith('\\[')) { math = part.slice(2, -2); displayMode = true; }
                           else if (part.startsWith('\\(')) { math = part.slice(2, -2); displayMode = false; }
                           
-                          return katex.renderToString(math, { throwOnError: false, displayMode, output: 'mathml' });
+                          math = math.replace(/\\\\/g, '\\');
+                          return katex.renderToString(math, { throwOnError: false, displayMode, output: 'html' });
                       } catch (e) { return part; }
                   }
                   // Replace newlines with <br> for HTML rendering
@@ -893,6 +898,9 @@ export const ExamList: React.FC<ExamListProps> = ({ onViewResults, onViewOmr, us
           const pageIdsToCapture = [];
           for(let i=0; i<pages.length; i++) pageIdsToCapture.push(`pdf-page-${i}`);
           if(includeOmr) pageIdsToCapture.push('pdf-omr-page');
+
+          // Wait for fonts to load (CRITICAL for KaTeX symbols)
+          await document.fonts.ready;
 
           for (let i = 0; i < pageIdsToCapture.length; i++) {
               const pageId = pageIdsToCapture[i];

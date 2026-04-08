@@ -84,7 +84,7 @@ export const Photocard: React.FC<PhotocardProps> = ({
       document.body.appendChild(clone);
 
       // Wait for images and fonts to load
-      await new Promise(resolve => setTimeout(resolve, 1000));
+      await document.fonts.ready;
 
       const canvas = await html2canvas(clone, {
         useCORS: true,

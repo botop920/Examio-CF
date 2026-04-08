@@ -46,9 +46,13 @@ export const LatexText = React.memo(({ text }: LatexTextProps) => {
                 displayMode = false;
             }
 
+            // Clean up double backslashes that might come from JSON parsing
+            math = math.replace(/\\\\/g, '\\');
+
             const html = katex.renderToString(math, {
               throwOnError: false,
               displayMode: displayMode,
+              output: 'html'
             });
             
             return <span key={index} dangerouslySetInnerHTML={{ __html: html }} className={displayMode ? 'block my-2 overflow-x-auto' : 'inline-block'} />;
@@ -60,7 +64,8 @@ export const LatexText = React.memo(({ text }: LatexTextProps) => {
         
         // Regular Text (Render HTML for Images/Breaks)
         // Using dangerouslySetInnerHTML allows <img src="..."> tags to render properly
-        return <span key={index} dangerouslySetInnerHTML={{ __html: part }} />;
+        const formattedPart = part.replace(/\n/g, '<br/>');
+        return <span key={index} dangerouslySetInnerHTML={{ __html: formattedPart }} />;
       })}
     </span>
   );

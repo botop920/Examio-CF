@@ -216,6 +216,9 @@ export const ExamResults: React.FC<ExamResultsProps> = ({ examId, onBack }) => {
                 </div>
               `;
 
+              // Wait for fonts to load
+              await document.fonts.ready;
+
               // Render
               const canvas = await html2canvas(container, { scale: 2, useCORS: true, logging: false });
               const imgData = canvas.toDataURL('image/jpeg', 0.9);
