@@ -343,7 +343,16 @@ export const ExamStudio: React.FC<ExamStudioProps> = ({ onExamCreated }) => {
              - Identify the correct answer among your generated options.
           7. **EXISTING MCQs**: If the question in the image already has options, extract them exactly.
           8. Solve for 'correct_answer'. It MUST match one of the options exactly.
-          9. Convert math to LaTeX. IMPORTANT: Double escape backslashes (e.g. \\\\frac, \\\\vec) for valid JSON string. ALWAYS WRAP MATH IN $...$ (e.g. $\\\\frac{a}{b}$).
+          9. **STRICT MATH FORMATTING RULES**:
+             - Convert ALL raw math into LaTeX. DO NOT output raw symbols like √, ÷, or / or x (for multiply).
+             - Square root: \\\\sqrt{x}
+             - Fractions: \\\\frac{a}{b} (DO NOT use ÷ or /)
+             - Multiplication: use \\\\times
+             - Powers: x^{2}, x^{n}
+             - Units: format properly (e.g., ms^{-2})
+             - Inline math MUST be wrapped in \\\\( ... \\\\)
+             - Block math MUST be wrapped in \\\\[ ... \\\\]
+             - IMPORTANT: Double escape backslashes in JSON (e.g. \\\\frac, \\\\sqrt, \\\\(, \\\\)).
           
           Output Format: NDJSON (Newline Delimited JSON).
           - Output EACH question as a SINGLE LINE of valid JSON.
@@ -367,7 +376,16 @@ export const ExamStudio: React.FC<ExamStudioProps> = ({ onExamCreated }) => {
           4. **VARIATION MODE**: If enabled, for each suitable question found, generate a variation with different data values while keeping the logic same.
           5. **GRAPH/DIAGRAM/FIGURES**: If a question relies on a graph, diagram, or figure, EXTRACT IT and set "requires_diagram": true.
           6. IGNORE theory/definitions unless they are numbered questions.
-          7. Convert math to LaTeX. IMPORTANT: Double escape backslashes (e.g. \\\\frac, \\\\vec). ALWAYS WRAP MATH IN $...$ (e.g. $\\\\frac{a}{b}$).
+          7. **STRICT MATH FORMATTING RULES**:
+             - Convert ALL raw math into LaTeX. DO NOT output raw symbols like √, ÷, or / or x (for multiply).
+             - Square root: \\\\sqrt{x}
+             - Fractions: \\\\frac{a}{b} (DO NOT use ÷ or /)
+             - Multiplication: use \\\\times
+             - Powers: x^{2}, x^{n}
+             - Units: format properly (e.g., ms^{-2})
+             - Inline math MUST be wrapped in \\\\( ... \\\\)
+             - Block math MUST be wrapped in \\\\[ ... \\\\]
+             - IMPORTANT: Double escape backslashes in JSON (e.g. \\\\frac, \\\\sqrt, \\\\(, \\\\)).
           
           Output Format: NDJSON (Newline Delimited JSON).
           - Output EACH question as a SINGLE LINE of valid JSON.
@@ -646,7 +664,7 @@ export const ExamStudio: React.FC<ExamStudioProps> = ({ onExamCreated }) => {
               const chunk = questions.slice(i, i + BATCH_SIZE);
               const payload = chunk.map((q, idx) => ({ id: i + idx, text: q.text }));
               toast.loading(`Solving... (${completedCount}/${questions.length})`, { id: 'sol-gen' });
-              const prompt = `Task: Solve. INPUT: ${JSON.stringify(payload)} OUTPUT: JSON Array [{ "id": number, "explanation": "..." }] LaTeX for math (WRAP IN $...$). Double escape backslashes. KEEP ORIGINAL LANGUAGE.`;
+              const prompt = `Task: Solve. INPUT: ${JSON.stringify(payload)} OUTPUT: JSON Array [{ "id": number, "explanation": "..." }] STRICT MATH RULES: Convert all math to LaTeX. Square root: \\\\sqrt{x}. Fractions: \\\\frac{a}{b}. No ÷ or /. Multiply: \\\\times. Inline math: \\\\( ... \\\\). Block math: \\\\[ ... \\\\]. Double escape backslashes in JSON. KEEP ORIGINAL LANGUAGE.`;
               try {
                   const response = await ai.models.generateContent({ 
                       model: 'gemini-3.1-flash-lite-preview', 
@@ -725,7 +743,7 @@ export const ExamStudio: React.FC<ExamStudioProps> = ({ onExamCreated }) => {
       setIsEnhancing(true);
       try {
           const ai = new GoogleGenAI({ apiKey: process.env.API_KEY });
-          const prompt = `Task: Enhance raw question to MCQ. Input: "${newQuestionText}". Rules: Fix grammar, Math to LaTeX (WRAP IN $...$), Generate 4 options, Solve${includeExplanation ? ', Write explanation' : ''}. Output JSON: { "question_text": "...", "options": ["..."], "correct_answer": "..."${includeExplanation ? ', "explanation": "..."' : ''} }. IMPORTANT: Escape LaTeX backslashes (e.g. \\\\vec, \\\\frac). KEEP ORIGINAL LANGUAGE.`;
+          const prompt = `Task: Enhance raw question to MCQ. Input: "${newQuestionText}". Rules: Fix grammar, Generate 4 options, Solve${includeExplanation ? ', Write explanation' : ''}. Output JSON: { "question_text": "...", "options": ["..."], "correct_answer": "..."${includeExplanation ? ', "explanation": "..."' : ''} }. STRICT MATH RULES: Convert all math to LaTeX. Square root: \\\\sqrt{x}. Fractions: \\\\frac{a}{b}. No ÷ or /. Multiply: \\\\times. Inline math: \\\\( ... \\\\). Block math: \\\\[ ... \\\\]. Double escape backslashes in JSON. KEEP ORIGINAL LANGUAGE.`;
           const response = await ai.models.generateContent({ 
               model: 'gemini-3.1-flash-lite-preview', 
               contents: [{ role: 'user', parts: [{ text: prompt }] }], 

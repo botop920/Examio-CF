@@ -307,10 +307,32 @@ export const ExamList: React.FC<ExamListProps> = ({ onViewResults, onViewOmr, us
 
           // Inject KaTeX stylesheet into container context
           const katexStyle = document.createElement('style');
-          katexStyle.textContent = Array.from(document.styleSheets)
+          let katexCss = Array.from(document.styleSheets)
               .filter(s => { try { return s.href?.includes('katex'); } catch { return false; } })
               .flatMap(s => { try { return Array.from(s.cssRules).map(r => r.cssText); } catch { return []; } })
               .join('\n');
+              
+          // Fix html2canvas KaTeX rendering bugs (fraction line and root symbol going up)
+          katexCss += `
+              .katex .frac-line {
+                  border-bottom: none !important;
+                  background-color: currentColor !important;
+                  height: 1px !important;
+              }
+              .katex .sqrt-line {
+                  border-top: none !important;
+                  background-color: currentColor !important;
+                  height: 1px !important;
+              }
+              .katex {
+                  line-height: 1.2 !important;
+              }
+              .katex .base { position: relative !important; display: inline-block !important; }
+              .katex .vlist-t { display: inline-table !important; vertical-align: middle !important; }
+              .katex .vlist-r { display: table-row !important; }
+              .katex .vlist { display: table-cell !important; vertical-align: bottom !important; position: relative !important; }
+          `;
+          katexStyle.textContent = katexCss;
           container.appendChild(katexStyle);
 
           // Wait for fonts to fully load before html2canvas capture
@@ -677,10 +699,32 @@ export const ExamList: React.FC<ExamListProps> = ({ onViewResults, onViewOmr, us
 
           // Inject KaTeX stylesheet into container context
           const katexStyle = document.createElement('style');
-          katexStyle.textContent = Array.from(document.styleSheets)
+          let katexCss = Array.from(document.styleSheets)
               .filter(s => { try { return s.href?.includes('katex'); } catch { return false; } })
               .flatMap(s => { try { return Array.from(s.cssRules).map(r => r.cssText); } catch { return []; } })
               .join('\n');
+              
+          // Fix html2canvas KaTeX rendering bugs (fraction line and root symbol going up)
+          katexCss += `
+              .katex .frac-line {
+                  border-bottom: none !important;
+                  background-color: currentColor !important;
+                  height: 1px !important;
+              }
+              .katex .sqrt-line {
+                  border-top: none !important;
+                  background-color: currentColor !important;
+                  height: 1px !important;
+              }
+              .katex {
+                  line-height: 1.2 !important;
+              }
+              .katex .base { position: relative !important; display: inline-block !important; }
+              .katex .vlist-t { display: inline-table !important; vertical-align: middle !important; }
+              .katex .vlist-r { display: table-row !important; }
+              .katex .vlist { display: table-cell !important; vertical-align: bottom !important; position: relative !important; }
+          `;
+          katexStyle.textContent = katexCss;
           container.appendChild(katexStyle);
 
           // Wait for fonts to fully load before html2canvas capture
