@@ -305,6 +305,18 @@ export const ExamList: React.FC<ExamListProps> = ({ onViewResults, onViewOmr, us
           (container.style as any).webkitFontSmoothing = "antialiased";
           document.body.appendChild(container);
 
+          // Inject KaTeX stylesheet into container context
+          const katexStyle = document.createElement('style');
+          katexStyle.textContent = Array.from(document.styleSheets)
+              .filter(s => { try { return s.href?.includes('katex'); } catch { return false; } })
+              .flatMap(s => { try { return Array.from(s.cssRules).map(r => r.cssText); } catch { return []; } })
+              .join('\n');
+          container.appendChild(katexStyle);
+
+          // Wait for fonts to fully load before html2canvas capture
+          await document.fonts.ready;
+          await new Promise(r => setTimeout(r, 300));
+
           // 3. Render Text Helper (LaTeX)
           const renderText = (text: string) => {
               const regex = /(\$\$[\s\S]+?\$\$|\$[^\$]+?\$|\\\[[\s\S]+?\\\]|\\\([\s\S]+?\\\))/g;
@@ -320,16 +332,7 @@ export const ExamList: React.FC<ExamListProps> = ({ onViewResults, onViewOmr, us
                           else if (part.startsWith('\\[')) { math = part.slice(2, -2); displayMode = true; }
                           else if (part.startsWith('\\(')) { math = part.slice(2, -2); displayMode = false; }
                           
-                          math = math.replace(/\\\\/g, '\\');
-                          const rendered = katex.renderToString(math, { 
-                              throwOnError: false, 
-                              displayMode, 
-                              output: 'html',
-                              strict: false,
-                              trust: true
-                          });
-                          // Use a wrapper with normalized styles to prevent inheritance issues
-                          return `<span class="math-wrapper" style="display: ${displayMode ? 'block' : 'inline-block'}; line-height: normal; text-indent: 0; letter-spacing: normal; word-spacing: normal; white-space: nowrap; ${displayMode ? 'margin: 10px 0; text-align: center;' : 'margin: 0 2px;'}">${rendered}</span>`;
+                          return katex.renderToString(math, { throwOnError: false, displayMode, output: 'html' });
                       } catch (e) { return part; }
                   }
                   return part.replace(/\n/g, '<br/>');
@@ -504,25 +507,6 @@ export const ExamList: React.FC<ExamListProps> = ({ onViewResults, onViewOmr, us
 
           container.innerHTML = htmlContent;
 
-          // Add KaTeX CSS and stabilization styles to the container
-          container.innerHTML = `
-            <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/katex@0.16.9/dist/katex.min.css">
-            <style>
-                @import url('https://fonts.googleapis.com/css2?family=Noto+Sans+Bengali:wght@400;700&family=Inter:wght@400;700&display=swap');
-                .pdf-page { font-family: 'Noto Sans Bengali', 'Inter', sans-serif !important; }
-                .math-wrapper .katex { font-size: 1.1em !important; line-height: 1.2 !important; }
-                /* Fix for html2canvas shifting symbols */
-                .katex .base { position: relative !important; display: inline-block !important; }
-                .katex .vlist-t { display: inline-table !important; vertical-align: middle !important; }
-                .katex .vlist-r { display: table-row !important; }
-                .katex .vlist { display: table-cell !important; vertical-align: bottom !important; position: relative !important; }
-                .katex .mord { position: relative !important; display: inline-block !important; }
-                .katex .msupsub { display: inline-block !important; vertical-align: middle !important; }
-                .katex .vlist-s { display: table-cell !important; vertical-align: bottom !important; width: 0 !important; }
-            </style>
-            ${htmlContent}
-          `;
-
           // 8. Load Images
           const images = container.getElementsByTagName('img');
           await Promise.all(Array.from(images).map(img => {
@@ -535,22 +519,24 @@ export const ExamList: React.FC<ExamListProps> = ({ onViewResults, onViewOmr, us
           const pdfWidth = pdf.internal.pageSize.getWidth();
           const pdfHeight = pdf.internal.pageSize.getHeight();
 
-          // Wait for fonts to load (CRITICAL for KaTeX symbols)
-          await document.fonts.ready;
-          // Extra delay to ensure KaTeX fonts are fully applied and metrics are stable
-          await new Promise(resolve => setTimeout(resolve, 1500));
-
           for (let i = 0; i < pages.length; i++) {
               const pageId = `pdf-solution-page-${i}`;
               const pageEl = document.getElementById(pageId);
               if (!pageEl) continue;
 
               const canvas = await html2canvas(pageEl, {
-                  scale: 2, 
+                  scale: 3, 
                   useCORS: true, 
+                  allowTaint: true,
                   logging: false,
                   windowWidth: 794, 
-                  windowHeight: 1123
+                  windowHeight: 1123,
+                  onclone: (clonedDoc) => {
+                      const link = clonedDoc.createElement('link');
+                      link.rel = 'stylesheet';
+                      link.href = 'https://cdn.jsdelivr.net/npm/katex@0.16.9/dist/katex.min.css';
+                      clonedDoc.head.appendChild(link);
+                  }
               });
 
               const imgData = canvas.toDataURL('image/jpeg', 0.90);
@@ -636,16 +622,7 @@ export const ExamList: React.FC<ExamListProps> = ({ onViewResults, onViewOmr, us
                           else if (part.startsWith('\\[')) { math = part.slice(2, -2); displayMode = true; }
                           else if (part.startsWith('\\(')) { math = part.slice(2, -2); displayMode = false; }
                           
-                          math = math.replace(/\\\\/g, '\\');
-                          const rendered = katex.renderToString(math, { 
-                              throwOnError: false, 
-                              displayMode, 
-                              output: 'html',
-                              strict: false,
-                              trust: true
-                          });
-                          // Use a wrapper with normalized styles to prevent inheritance issues
-                          return `<span class="math-wrapper" style="display: ${displayMode ? 'block' : 'inline-block'}; line-height: normal; text-indent: 0; letter-spacing: normal; word-spacing: normal; white-space: nowrap; ${displayMode ? 'margin: 10px 0; text-align: center;' : 'margin: 0 2px;'}">${rendered}</span>`;
+                          return katex.renderToString(math, { throwOnError: false, displayMode, output: 'html' });
                       } catch (e) { return part; }
                   }
                   // Replace newlines with <br> for HTML rendering
@@ -697,6 +674,18 @@ export const ExamList: React.FC<ExamListProps> = ({ onViewResults, onViewOmr, us
           container.style.fontFamily = "'Noto Sans Bengali', 'Inter', sans-serif";
           (container.style as any).webkitFontSmoothing = "antialiased";
           document.body.appendChild(container);
+
+          // Inject KaTeX stylesheet into container context
+          const katexStyle = document.createElement('style');
+          katexStyle.textContent = Array.from(document.styleSheets)
+              .filter(s => { try { return s.href?.includes('katex'); } catch { return false; } })
+              .flatMap(s => { try { return Array.from(s.cssRules).map(r => r.cssText); } catch { return []; } })
+              .join('\n');
+          container.appendChild(katexStyle);
+
+          // Wait for fonts to fully load before html2canvas capture
+          await document.fonts.ready;
+          await new Promise(r => setTimeout(r, 300));
 
           // --- DYNAMIC FONT SCALING CALCULATOR ---
           const getPageStyles = (itemCount: number, layout: string) => {
@@ -860,24 +849,7 @@ export const ExamList: React.FC<ExamListProps> = ({ onViewResults, onViewOmr, us
               htmlContent += generateCompactOmrPage();
           }
 
-          // Add KaTeX CSS and stabilization styles to the container
-          container.innerHTML = `
-            <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/katex@0.16.9/dist/katex.min.css">
-            <style>
-                @import url('https://fonts.googleapis.com/css2?family=Noto+Sans+Bengali:wght@400;700&family=Inter:wght@400;700&display=swap');
-                .pdf-page { font-family: 'Noto Sans Bengali', 'Inter', sans-serif !important; }
-                .math-wrapper .katex { font-size: 1.1em !important; line-height: 1.2 !important; }
-                /* Fix for html2canvas shifting symbols */
-                .katex .base { position: relative !important; display: inline-block !important; }
-                .katex .vlist-t { display: inline-table !important; vertical-align: middle !important; }
-                .katex .vlist-r { display: table-row !important; }
-                .katex .vlist { display: table-cell !important; vertical-align: bottom !important; position: relative !important; }
-                .katex .mord { position: relative !important; display: inline-block !important; }
-                .katex .msupsub { display: inline-block !important; vertical-align: middle !important; }
-                .katex .vlist-s { display: table-cell !important; vertical-align: bottom !important; width: 0 !important; }
-            </style>
-            ${htmlContent}
-          `;
+          container.innerHTML = htmlContent;
 
           // 9. Load Images
           const images = container.getElementsByTagName('img');
@@ -953,22 +925,24 @@ export const ExamList: React.FC<ExamListProps> = ({ onViewResults, onViewOmr, us
           for(let i=0; i<pages.length; i++) pageIdsToCapture.push(`pdf-page-${i}`);
           if(includeOmr) pageIdsToCapture.push('pdf-omr-page');
 
-          // Wait for fonts to load (CRITICAL for KaTeX symbols)
-          await document.fonts.ready;
-          // Extra delay to ensure KaTeX fonts are fully applied and metrics are stable
-          await new Promise(resolve => setTimeout(resolve, 1500));
-
           for (let i = 0; i < pageIdsToCapture.length; i++) {
               const pageId = pageIdsToCapture[i];
               const pageEl = document.getElementById(pageId);
               if (!pageEl) continue;
 
               const canvas = await html2canvas(pageEl, {
-                  scale: 2, 
+                  scale: 2.5, 
                   useCORS: true, 
+                  allowTaint: true,
                   logging: false,
                   windowWidth: 794, 
-                  windowHeight: 1123
+                  windowHeight: 1123,
+                  onclone: (clonedDoc) => {
+                      const link = clonedDoc.createElement('link');
+                      link.rel = 'stylesheet';
+                      link.href = 'https://cdn.jsdelivr.net/npm/katex@0.16.9/dist/katex.min.css';
+                      clonedDoc.head.appendChild(link);
+                  }
               });
 
               const imgData = canvas.toDataURL('image/jpeg', 0.90);
