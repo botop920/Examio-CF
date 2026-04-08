@@ -154,6 +154,14 @@ export const ExamResults: React.FC<ExamResultsProps> = ({ examId, onBack }) => {
 
               // Construct HTML for this page
               container.innerHTML = `
+                <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/katex@0.16.9/dist/katex.min.css">
+                <style>
+                    .math-wrapper .katex { font-size: 1.1em !important; line-height: 1.2 !important; }
+                    .katex .base { position: relative !important; display: inline-block !important; }
+                    .katex .vlist-t { display: inline-table !important; vertical-align: middle !important; }
+                    .katex .vlist-r { display: table-row !important; }
+                    .katex .vlist { display: table-cell !important; vertical-align: bottom !important; position: relative !important; }
+                </style>
                 <div style="padding: 40px; background: white; color: #111; min-height: 1100px; position: relative;">
                     <!-- Header -->
                     <div style="border-bottom: 2px solid #000; padding-bottom: 20px; margin-bottom: 20px; display: flex; justify-content: space-between; align-items: flex-start;">
@@ -218,6 +226,8 @@ export const ExamResults: React.FC<ExamResultsProps> = ({ examId, onBack }) => {
 
               // Wait for fonts to load
               await document.fonts.ready;
+              // Small extra delay to ensure KaTeX fonts are fully applied to metrics
+              await new Promise(resolve => setTimeout(resolve, 500));
 
               // Render
               const canvas = await html2canvas(container, { scale: 2, useCORS: true, logging: false });

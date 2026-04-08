@@ -52,10 +52,20 @@ export const LatexText = React.memo(({ text }: LatexTextProps) => {
             const html = katex.renderToString(math, {
               throwOnError: false,
               displayMode: displayMode,
-              output: 'html'
+              output: 'html',
+              strict: false,
+              trust: true
             });
             
-            return <span key={index} dangerouslySetInnerHTML={{ __html: html }} className={displayMode ? 'block my-2 overflow-x-auto' : 'inline-block'} />;
+            return (
+              <span 
+                key={index} 
+                className={`math-wrapper ${displayMode ? 'block my-2 overflow-x-auto' : 'inline-block'}`}
+                style={{ lineHeight: 'normal', textIndent: 0, letterSpacing: 'normal', wordSpacing: 'normal' }}
+              >
+                <span dangerouslySetInnerHTML={{ __html: html }} />
+              </span>
+            );
           } catch (e) {
             // Fallback to raw text if render fails
             return <span key={index} className="text-red-500 text-xs">{part}</span>;
@@ -64,8 +74,7 @@ export const LatexText = React.memo(({ text }: LatexTextProps) => {
         
         // Regular Text (Render HTML for Images/Breaks)
         // Using dangerouslySetInnerHTML allows <img src="..."> tags to render properly
-        const formattedPart = part.replace(/\n/g, '<br/>');
-        return <span key={index} dangerouslySetInnerHTML={{ __html: formattedPart }} />;
+        return <span key={index} dangerouslySetInnerHTML={{ __html: part }} />;
       })}
     </span>
   );
