@@ -350,9 +350,9 @@ export const ExamStudio: React.FC<ExamStudioProps> = ({ onExamCreated }) => {
              - Multiplication: use \\\\times
              - Powers: x^{2}, x^{n}
              - Units: format properly (e.g., ms^{-2})
-             - Inline math MUST be wrapped in \\\\( ... \\\\)
-             - Block math MUST be wrapped in \\\\[ ... \\\\]
-             - IMPORTANT: Double escape backslashes in JSON (e.g. \\\\frac, \\\\sqrt, \\\\(, \\\\)).
+             - Inline math MUST be wrapped with single dollar signs: $...$
+             - Block/Display math MUST be wrapped with double dollar signs: $$...$$
+             - IMPORTANT: Double escape all LaTeX command backslashes in JSON (e.g. \\\\frac, \\\\sqrt, \\\\times).
           
           Output Format: NDJSON (Newline Delimited JSON).
           - Output EACH question as a SINGLE LINE of valid JSON.
@@ -383,9 +383,9 @@ export const ExamStudio: React.FC<ExamStudioProps> = ({ onExamCreated }) => {
              - Multiplication: use \\\\times
              - Powers: x^{2}, x^{n}
              - Units: format properly (e.g., ms^{-2})
-             - Inline math MUST be wrapped in \\\\( ... \\\\)
-             - Block math MUST be wrapped in \\\\[ ... \\\\]
-             - IMPORTANT: Double escape backslashes in JSON (e.g. \\\\frac, \\\\sqrt, \\\\(, \\\\)).
+             - Inline math MUST be wrapped with single dollar signs: $...$
+             - Block/Display math MUST be wrapped with double dollar signs: $$...$$
+             - IMPORTANT: Double escape all LaTeX command backslashes in JSON (e.g. \\\\frac, \\\\sqrt, \\\\times).
           
           Output Format: NDJSON (Newline Delimited JSON).
           - Output EACH question as a SINGLE LINE of valid JSON.

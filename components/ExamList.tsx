@@ -341,6 +341,7 @@ export const ExamList: React.FC<ExamListProps> = ({ onViewResults, onViewOmr, us
 
           // 3. Render Text Helper (LaTeX)
           const renderText = (text: string) => {
+              if (!text) return '';
               const regex = /(\$\$[\s\S]+?\$\$|\$[^\$]+?\$|\\\[[\s\S]+?\\\]|\\\([\s\S]+?\\\))/g;
               const parts = text.split(regex);
               
@@ -354,7 +355,16 @@ export const ExamList: React.FC<ExamListProps> = ({ onViewResults, onViewOmr, us
                           else if (part.startsWith('\\[')) { math = part.slice(2, -2); displayMode = true; }
                           else if (part.startsWith('\\(')) { math = part.slice(2, -2); displayMode = false; }
                           
-                          return katex.renderToString(math, { throwOnError: false, displayMode, output: 'html' });
+                          // Clean up double backslashes that might come from JSON parsing
+                          math = math.replace(/\\\\/g, '\\');
+                          
+                          return katex.renderToString(math, { 
+                              throwOnError: false, 
+                              displayMode, 
+                              output: 'html',
+                              strict: false,
+                              trust: true
+                          });
                       } catch (e) { return part; }
                   }
                   return part.replace(/\n/g, '<br/>');
@@ -631,6 +641,7 @@ export const ExamList: React.FC<ExamListProps> = ({ onViewResults, onViewOmr, us
 
           // 3. Render Text Helper (LaTeX)
           const renderText = (text: string) => {
+              if (!text) return '';
               const regex = /(\$\$[\s\S]+?\$\$|\$[^\$]+?\$|\\\[[\s\S]+?\\\]|\\\([\s\S]+?\\\))/g;
               const parts = text.split(regex);
               
@@ -644,7 +655,16 @@ export const ExamList: React.FC<ExamListProps> = ({ onViewResults, onViewOmr, us
                           else if (part.startsWith('\\[')) { math = part.slice(2, -2); displayMode = true; }
                           else if (part.startsWith('\\(')) { math = part.slice(2, -2); displayMode = false; }
                           
-                          return katex.renderToString(math, { throwOnError: false, displayMode, output: 'html' });
+                          // Clean up double backslashes that might come from JSON parsing
+                          math = math.replace(/\\\\/g, '\\');
+                          
+                          return katex.renderToString(math, { 
+                              throwOnError: false, 
+                              displayMode, 
+                              output: 'html',
+                              strict: false,
+                              trust: true
+                          });
                       } catch (e) { return part; }
                   }
                   // Replace newlines with <br> for HTML rendering
